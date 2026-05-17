@@ -70,9 +70,14 @@ const OCEAN_FRAG = /* glsl */`
 
 // ── Aurora shaders ───────────────────────────────────────
 const AURORA_VERT = /* glsl */`
-  varying vec3 vPos;
+  attribute float aAngle;
+  attribute float aHeight;
+  varying float vAngle;
+  varying float vHeight;
+
   void main() {
-    vPos = normalize(position);
+    vAngle  = aAngle;
+    vHeight = aHeight;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
 `;
@@ -80,51 +85,48 @@ const AURORA_VERT = /* glsl */`
 const AURORA_FRAG = /* glsl */`
   uniform float uTime;
   uniform float uNight;
-  varying vec3 vPos;
+  varying float vAngle;
+  varying float vHeight;
 
   void main() {
-    float lat = abs(vPos.y);
-    float lon  = atan(vPos.z, vPos.x);
+    vec3 teal = vec3(0.00, 0.52, 0.82);
 
-    // ── Layer 1: green / teal curtain ─────────────────
-    float mask1 = smoothstep(0.80, 0.86, lat) * (1.0 - smoothstep(0.92, 0.96, lat));
+    // ── Layer 1: green / teal — mid-altitude floating band ──
+    float bcut1 = 0.18
+      + sin(vAngle *  4.17 + uTime * 0.34) * 0.05
+      + sin(vAngle *  9.53 - uTime * 0.26) * 0.03;
+    float spike1 = 0.55
+      + sin(vAngle *  5.73 + uTime * 0.80) * 0.13
+      + sin(vAngle * 11.37 - uTime * 1.10) * 0.09
+      + sin(vAngle *  7.83 + uTime * 0.55) * 0.06
+      + sin(vAngle * 17.92 + uTime * 0.92) * 0.04;
+    spike1 = clamp(spike1, 0.28, 0.88);
 
-    // Incommensurate frequencies → irregular, non-repeating column pattern
-    float c1 = sin(lon * 5.73  + uTime * 0.10)        * 0.50
-             + sin(lon * 11.37 - uTime * 0.07 + 1.80) * 0.30
-             + sin(lon * 17.92 + uTime * 0.13 + 3.40) * 0.12
-             + sin(lon *  3.14 - uTime * 0.05 + 5.10) * 0.08;
-    c1 = clamp(c1 * 0.5 + 0.5, 0.0, 1.0);
+    float fade1   = smoothstep(bcut1, bcut1 + 0.07, vHeight)
+                  * (1.0 - smoothstep(spike1 * 0.65, spike1, vHeight));
+    float bright1 = 0.55 + 0.45 * (sin(vAngle * 5.73 + uTime * 0.22) * 0.5 + 0.5);
+    vec3  col1    = mix(vec3(0.05, 0.88, 0.42), teal, smoothstep(0.0, 0.6, vHeight));
+    float a1      = fade1 * bright1 * uNight * 0.45;
 
-    // Vertical ripple — curtain hanging / swaying texture
-    float r1 = sin(lon * 19.73 + lat * 55.0 + uTime * 1.9)
-             * sin(lon *  8.41 + lat * 30.0 + uTime * 1.4) * 0.5 + 0.5;
+    // ── Layer 2: violet — separate lower floating band ──────
+    float bcut2 = 0.10
+      + sin(vAngle *  6.29 - uTime * 0.31 + 1.2) * 0.03
+      + sin(vAngle * 12.18 + uTime * 0.22 + 2.7) * 0.02;
+    float spike2 = 0.30
+      + sin(vAngle *  8.11 - uTime * 0.70 + 0.8) * 0.10
+      + sin(vAngle * 14.73 + uTime * 0.90 + 3.1) * 0.06
+      + sin(vAngle *  3.97 - uTime * 0.45 + 1.9) * 0.05
+      + sin(vAngle * 21.34 + uTime * 1.10 + 4.5) * 0.03;
+    spike2 = clamp(spike2, 0.14, 0.50);
 
-    float pulse1 = sin(uTime * 0.62 + lon * 2.37) * 0.22 + 0.78;
+    float fade2   = smoothstep(bcut2, bcut2 + 0.06, vHeight)
+                  * (1.0 - smoothstep(spike2 * 0.65, spike2, vHeight));
+    float bright2 = 0.50 + 0.50 * (sin(vAngle * 8.11 + uTime * 0.35 + 1.5) * 0.5 + 0.5);
+    vec3  col2    = mix(vec3(0.60, 0.10, 0.82), teal, smoothstep(0.2, 0.8, vHeight) * 0.30);
+    float a2      = fade2 * bright2 * uNight * 0.35;
 
-    vec3  green = vec3(0.05, 0.88, 0.42);
-    vec3  teal  = vec3(0.00, 0.52, 0.82);
-    vec3  col1  = mix(green, teal, c1 * 0.55);
-    float a1    = mask1 * (0.18 + 0.28 * c1) * (0.55 + 0.45 * r1) * pulse1 * uNight;
-
-    // ── Layer 2: violet curtain (overlapping, higher latitude) ──
-    float mask2 = smoothstep(0.83, 0.88, lat) * (1.0 - smoothstep(0.91, 0.94, lat));
-
-    float c2 = sin(lon * 7.83  - uTime * 0.08 + 2.10) * 0.45
-             + sin(lon * 13.61 + uTime * 0.11 + 0.70) * 0.30
-             + sin(lon *  4.27 - uTime * 0.06 + 4.20) * 0.25;
-    c2 = clamp(c2 * 0.5 + 0.5, 0.0, 1.0);
-
-    float r2     = sin(lon * 23.47 + lat * 60.0 + uTime * 2.3) * 0.5 + 0.5;
-    float pulse2 = sin(uTime * 0.48 + lon * 3.14 + 1.20) * 0.28 + 0.72;
-
-    vec3  violet = vec3(0.60, 0.10, 0.82);
-    vec3  col2   = mix(violet, teal, c2 * 0.25);
-    float a2     = mask2 * (0.12 + 0.20 * c2) * (0.50 + 0.50 * r2) * pulse2 * uNight;
-
-    // Premultiplied additive output (mesh uses AdditiveBlending)
+    // Premultiplied additive output
     vec3 additive = col1 * a1 + col2 * a2;
-    if (dot(additive, vec3(1.0)) < 0.005) discard;
     gl_FragColor = vec4(additive, 1.0);
   }
 `;
@@ -684,6 +686,53 @@ function buildDolphin(): { group: THREE.Group; tail: THREE.Group } {
   return { group: g, tail };
 }
 
+// ── Aurora crown geometry ────────────────────────────────
+function buildAuroraCrown(): THREE.BufferGeometry {
+  const N      = 96;   // segments around each ring
+  const LAT_Y  = 0.88; // unit-sphere y of aurora base (~62° latitude)
+  const R_BASE = 1.02; // inner radius — just above surface
+  const R_TOP  = 1.46; // outer radius — top of tallest spike
+
+  const r_ring = Math.sqrt(1 - LAT_Y * LAT_Y);
+  const positions: number[] = [];
+  const angles:    number[] = [];
+  const heights:   number[] = [];
+  const indices:   number[] = [];
+
+  for (const pole of [-1, 1]) {
+    const yF    = pole * LAT_Y;
+    const vBase = positions.length / 3;
+
+    for (let i = 0; i <= N; i++) {
+      const a  = (i / N) * Math.PI * 2;
+      const nx = r_ring * Math.cos(a);
+      const nz = r_ring * Math.sin(a);
+
+      // Bottom vertex (near surface)
+      positions.push(nx * R_BASE, yF * R_BASE, nz * R_BASE);
+      angles.push(a); heights.push(0);
+      // Top vertex (outer limit of spike)
+      positions.push(nx * R_TOP, yF * R_TOP, nz * R_TOP);
+      angles.push(a); heights.push(1);
+    }
+
+    for (let i = 0; i < N; i++) {
+      const v0 = vBase + i * 2;
+      const v1 = vBase + i * 2 + 1;
+      const v2 = vBase + (i + 1) * 2;
+      const v3 = vBase + (i + 1) * 2 + 1;
+      indices.push(v0, v2, v1,  v1, v2, v3);
+    }
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
+  geo.setAttribute('aAngle',   new THREE.BufferAttribute(new Float32Array(angles),   1));
+  geo.setAttribute('aHeight',  new THREE.BufferAttribute(new Float32Array(heights),  1));
+  geo.setIndex(indices);
+  return geo;
+}
+
 // ── Animated airplane ────────────────────────────────────
 function smoothStep(e0: number, e1: number, x: number): number {
   const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0)));
@@ -868,14 +917,21 @@ export default function PlanetGlobe({ base }: { base: string }) {
     // ── Aurora ────────────────────────────────────────
     const auroraUniforms = { uTime: { value: 0 }, uNight: { value: 0 } };
     const aurora = new THREE.Mesh(
-      new THREE.SphereGeometry(1.05, 64, 32),
+      buildAuroraCrown(),
       new THREE.ShaderMaterial({
-        uniforms:       auroraUniforms,
-        vertexShader:   AURORA_VERT,
-        fragmentShader: AURORA_FRAG,
-        transparent:    true,
-        depthWrite:     false,
-        blending:       THREE.AdditiveBlending,
+        uniforms:           auroraUniforms,
+        vertexShader:       AURORA_VERT,
+        fragmentShader:     AURORA_FRAG,
+        transparent:        true,
+        depthWrite:         false,
+        blending:           THREE.CustomBlending,
+        blendEquation:      THREE.AddEquation,
+        blendSrc:           THREE.OneFactor,
+        blendDst:           THREE.OneFactor,
+        blendEquationAlpha: THREE.AddEquation,
+        blendSrcAlpha:      THREE.ZeroFactor,
+        blendDstAlpha:      THREE.OneFactor,
+        side:               THREE.DoubleSide,
       }),
     );
     aurora.renderOrder = 3;
