@@ -436,7 +436,6 @@ function buildStation(
   // ── Aerospace lab extras: runway, plane, launch pad, rocket, shuttle ──
   if (s.id === 'aerospace-lab') {
     const concreteMat = new THREE.MeshLambertMaterial({ color: 0xa0a0a0 });
-    const metalMat    = new THREE.MeshLambertMaterial({ color: 0xd0d8e0 });
     const gantryMat   = new THREE.MeshLambertMaterial({ color: 0xc07828 });
     const rocketMat   = new THREE.MeshLambertMaterial({ color: 0xf0ede8 });
     const shuttleMat  = new THREE.MeshLambertMaterial({ color: 0xf0ece4 });
@@ -456,30 +455,6 @@ function buildStation(
     line.position.copy(normal.clone().multiplyScalar(r).addScaledVector(right, 0.060));
     line.quaternion.copy(quat);
     group.add(line);
-
-    // Airplane (fuselage + wings + tail fin)
-    const planePos = normal.clone().multiplyScalar(r + 0.009)
-      .addScaledVector(right, 0.055).addScaledVector(forward, 0.018);
-
-    const fuseGeo = new THREE.CapsuleGeometry(0.007, 0.044, 4, 8);
-    fuseGeo.rotateZ(Math.PI / 2);
-    const fuseM = new THREE.Mesh(fuseGeo, metalMat);
-    fuseM.position.copy(planePos);
-    fuseM.quaternion.copy(quat);
-    group.add(fuseM);
-
-    const wingGeo = new THREE.BoxGeometry(0.068, 0.002, 0.018);
-    const wingM = new THREE.Mesh(wingGeo, metalMat);
-    wingM.position.copy(planePos);
-    wingM.quaternion.copy(quat);
-    group.add(wingM);
-
-    const tailFinGeo = new THREE.BoxGeometry(0.002, 0.012, 0.012);
-    tailFinGeo.translate(0, 0.006, 0);
-    const tailFin = new THREE.Mesh(tailFinGeo, metalMat);
-    tailFin.position.copy(planePos.clone().addScaledVector(right, -0.022));
-    tailFin.quaternion.copy(quat);
-    group.add(tailFin);
 
     // Launch pad
     const padPos = normal.clone().multiplyScalar(r)
@@ -646,6 +621,74 @@ function buildDolphin(): { group: THREE.Group; tail: THREE.Group } {
   g.add(tail);
 
   return { group: g, tail };
+}
+
+// ── Animated airplane ────────────────────────────────────
+function smoothStep(e0: number, e1: number, x: number): number {
+  const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0)));
+  return t * t * (3 - 2 * t);
+}
+
+function buildAnimatedPlane(): {
+  group:      THREE.Group;
+  windowMats: THREE.MeshLambertMaterial[];
+  navGreen:   THREE.Mesh;
+  navRed:     THREE.Mesh;
+} {
+  const g        = new THREE.Group();
+  const metalMat = new THREE.MeshLambertMaterial({ color: 0xd0d8e0 });
+  const windowMats: THREE.MeshLambertMaterial[] = [];
+
+  // Fuselage — fatter radius (0.009) and longer (0.056), length along +Z (forward)
+  const fuseGeo = new THREE.CapsuleGeometry(0.009, 0.056, 4, 8);
+  fuseGeo.rotateX(Math.PI / 2);
+  g.add(new THREE.Mesh(fuseGeo, metalMat));
+
+  // Main wings — higher aspect ratio: wider span, narrower chord
+  g.add(new THREE.Mesh(new THREE.BoxGeometry(0.080, 0.002, 0.012), metalMat));
+
+  // Horizontal stabilizer at tail
+  const hStab = new THREE.BoxGeometry(0.038, 0.002, 0.009);
+  hStab.translate(0, 0, -0.034);
+  g.add(new THREE.Mesh(hStab, metalMat));
+
+  // Vertical fin
+  const vFin = new THREE.BoxGeometry(0.002, 0.018, 0.014);
+  vFin.translate(0, 0.009, -0.032);
+  g.add(new THREE.Mesh(vFin, metalMat));
+
+  // Windows — 5 per side (front 1 and rear 2 removed), spacing slightly widened
+  for (const side of [-1, 1]) {
+    for (let wi = 0; wi < 5; wi++) {
+      const wGeo = new THREE.BoxGeometry(0.0014, 0.0026, 0.0030);
+      wGeo.translate(side * 0.0094, 0.001, -0.013 + wi * 0.008);
+      const wMat = new THREE.MeshLambertMaterial({
+        color: 0xfff0d8,
+        emissive: new THREE.Color(0xff9944),
+        emissiveIntensity: 0,
+      });
+      windowMats.push(wMat);
+      g.add(new THREE.Mesh(wGeo, wMat));
+    }
+  }
+
+  // Navigation lights — sd = cross(up,fwd) points port (left), so:
+  // starboard (right) = −sd = −X  → green
+  // port (left)       = +sd = +X  → red
+  const navGeo = new THREE.SphereGeometry(0.0028, 4, 4);
+  const navGreen = new THREE.Mesh(
+    navGeo,
+    new THREE.MeshBasicMaterial({ color: 0x00ee44, transparent: true }),
+  );
+  navGreen.position.set(-0.040, 0, 0); // starboard (right wing)
+  const navRed = new THREE.Mesh(
+    navGeo.clone(),
+    new THREE.MeshBasicMaterial({ color: 0xff2222, transparent: true }),
+  );
+  navRed.position.set(0.040, 0, 0); // port (left wing)
+  g.add(navGreen, navRed);
+
+  return { group: g, windowMats, navGreen, navRed };
 }
 
 // ── Stars ────────────────────────────────────────────────
@@ -820,6 +863,31 @@ export default function PlanetGlobe({ base }: { base: string }) {
       scene.add(light);
       stationLights.push(light);
     });
+
+    // ── Animated airplane (Aerospace Lab) ─────────────
+    const aeroStation = STATIONS.find(s => s.id === 'aerospace-lab')!;
+    const aeroVec     = stationUnitVec(aeroStation);
+    const aeroRight   = new THREE.Vector3().crossVectors(aeroVec, new THREE.Vector3(0, 1, 0)).normalize();
+    const aeroH       = getHeight(aeroVec.x, aeroVec.y, aeroVec.z);
+    const planeParkR  = 1.0 + Math.max(aeroH, 0.010) + 0.012;
+    const ORBIT_SPEED_VAL = (Math.PI * 2) / 35; // one orbit in 35 s
+    const ORBIT_ALT       = 0.10;
+    const TAKEOFF_SPAN    = 0.40;
+    const PLANE_WAIT      = 8.0;
+
+    // Precompute parked orientation quaternion (constant in planet-local frame)
+    const _pSide = new THREE.Vector3().crossVectors(aeroVec, aeroRight).normalize();
+    const _pFwdO = new THREE.Vector3().crossVectors(_pSide, aeroVec).normalize();
+    const planeParkQ = new THREE.Quaternion().setFromRotationMatrix(
+      new THREE.Matrix4().makeBasis(_pSide, aeroVec, _pFwdO)
+    );
+
+    const { group: planeGroup, windowMats: planeWindowMats, navGreen, navRed } = buildAnimatedPlane();
+    scene.add(planeGroup);
+
+    let planePhase: 'parked' | 'flying' = 'parked';
+    let planeOrbitAngle = 0;
+    let planeWaitTimer  = 5.0; // initial delay before first takeoff
 
     // ── Wildlife ──────────────────────────────────────
     interface ParrotState {
@@ -1036,6 +1104,56 @@ export default function PlanetGlobe({ base }: { base: string }) {
         light.intensity = darkBlend * 0.18;
       });
       stationEmissiveMats.forEach((mat) => { mat.emissiveIntensity = darkBlend * 0.45; });
+
+      // ── Animated airplane ───────────────────────────
+      {
+        const TWO_PI = Math.PI * 2;
+        if (planePhase === 'parked') {
+          planeWaitTimer -= dt;
+          planeGroup.position.copy(
+            aeroVec.clone().multiplyScalar(planeParkR).applyQuaternion(planetQuat)
+          );
+          planeGroup.quaternion.copy(planetQuat).multiply(planeParkQ);
+          if (planeWaitTimer <= 0) { planePhase = 'flying'; planeOrbitAngle = 0; }
+        } else {
+          planeOrbitAngle += ORBIT_SPEED_VAL * dt;
+          const theta = planeOrbitAngle;
+          const cosT  = Math.cos(theta);
+          const sinT  = Math.sin(theta);
+          // Position and forward on great-circle orbit
+          const up  = new THREE.Vector3(
+            cosT * aeroVec.x + sinT * aeroRight.x,
+            cosT * aeroVec.y + sinT * aeroRight.y,
+            cosT * aeroVec.z + sinT * aeroRight.z,
+          );
+          const fwd = new THREE.Vector3(
+            -sinT * aeroVec.x + cosT * aeroRight.x,
+            -sinT * aeroVec.y + cosT * aeroRight.y,
+            -sinT * aeroVec.z + cosT * aeroRight.z,
+          );
+          // Smooth altitude ramp for takeoff / landing
+          let altFrac: number;
+          if (theta < TAKEOFF_SPAN)               altFrac = smoothStep(0, TAKEOFF_SPAN, theta);
+          else if (theta > TWO_PI - TAKEOFF_SPAN) altFrac = smoothStep(0, TAKEOFF_SPAN, TWO_PI - theta);
+          else                                     altFrac = 1;
+          const r    = planeParkR + altFrac * ORBIT_ALT;
+          const sd   = new THREE.Vector3().crossVectors(up, fwd).normalize();
+          const fwdO = new THREE.Vector3().crossVectors(sd, up).normalize();
+          planeGroup.position.copy(up.clone().multiplyScalar(r).applyQuaternion(planetQuat));
+          planeGroup.quaternion.copy(planetQuat).multiply(
+            new THREE.Quaternion().setFromRotationMatrix(
+              new THREE.Matrix4().makeBasis(sd, up, fwdO)
+            )
+          );
+          if (theta >= TWO_PI) { planePhase = 'parked'; planeWaitTimer = PLANE_WAIT; }
+        }
+        // Window glow at night
+        planeWindowMats.forEach(m => { m.emissiveIntensity = darkBlend * 0.7; });
+        // Nav lights blink regardless of day/night
+        const blinkOn = Math.floor(t * 1.5) % 2 === 0;
+        (navGreen.material as THREE.MeshBasicMaterial).opacity = blinkOn ? 1.0 : 0.0;
+        (navRed.material   as THREE.MeshBasicMaterial).opacity = blinkOn ? 1.0 : 0.0;
+      }
 
       // Animate orbs (pulse + correct position follows planet rotation)
       orbs.forEach((orb, i) => {
