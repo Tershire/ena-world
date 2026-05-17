@@ -14,7 +14,7 @@ const { article, allArticles } = Astro.props;
 const { Content } = await render(article);
 
 const base = import.meta.env.BASE_URL;
-const navBase = `${base}marine-lab`;
+const navBase = `${base}/marine-lab`;
 const navArticles = allArticles.map((a) => ({ id: a.id, title: a.data.title }));
 ---
 

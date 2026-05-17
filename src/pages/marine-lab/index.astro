@@ -10,7 +10,7 @@ const raw = (await getCollection('marine-lab'))
   .sort((a, b) => (b.data.date?.valueOf() ?? 0) - (a.data.date?.valueOf() ?? 0));
 
 const base = import.meta.env.BASE_URL;
-const navBase = `${base}marine-lab`;
+const navBase = `${base}/marine-lab`;
 const navArticles = raw.map((a) => ({ id: a.id, title: a.data.title }));
 
 const articles: ArticleItem[] = raw.map((a) => ({
@@ -19,7 +19,7 @@ const articles: ArticleItem[] = raw.map((a) => ({
   description: a.data.description,
   date:        a.data.date?.toISOString(),
   tags:        a.data.tags ?? [],
-  href:        `${base}marine-lab/${a.id}`,
+  href:        `${base}/marine-lab/${a.id}`,
 }));
 ---
 
