@@ -64,7 +64,7 @@ const OCEAN_FRAG = /* glsl */`
     float light = max(dot(vWorldNormal, normalize(vec3(1.0, 1.2, 0.6))), 0.0);
     vec3 col = base * (0.72 + 0.28 * light);
     col = mix(col, crest, smoothstep(0.006, 0.012, vWaveHeight));
-    gl_FragColor = vec4(col, 1.0);
+    gl_FragColor = vec4(col, 0.92);
   }
 `;
 
@@ -171,11 +171,11 @@ function buildTerrain() {
     const rand   = rng();
 
     // Tropical palms — dense jungle zone
-    if (lat < 0.36 && h >= 0.035 && h < 0.125 && rand < 0.30) {
+    if (lat < 0.36 && h >= 0.018 && h < 0.130 && rand < 0.24) {
       palmTreePos.push(surfPt);
     }
     // Temperate trees — away from tropics and poles
-    else if (lat >= 0.36 && lat < 0.80 && h >= 0.040 && h < 0.130 && rand < 0.26) {
+    else if (lat >= 0.36 && lat < 0.80 && h >= 0.020 && h < 0.145 && rand < 0.22) {
       tempTreePos.push(surfPt);
     }
   }
@@ -616,10 +616,10 @@ export default function PlanetGlobe({ base }: { base: string }) {
       vertexShader:   OCEAN_VERT,
       fragmentShader: OCEAN_FRAG,
     });
-    oceanMat.depthWrite          = true;
-    oceanMat.polygonOffset       = true;
-    oceanMat.polygonOffsetFactor = -1;
+    oceanMat.transparent = true;
+    oceanMat.depthWrite  = false;
     const ocean = new THREE.Mesh(oceanGeo, oceanMat);
+    ocean.renderOrder = 2;
     scene.add(ocean);
 
     // ── Trees & coral ─────────────────────────────────
@@ -638,11 +638,11 @@ export default function PlanetGlobe({ base }: { base: string }) {
     // ── Atmosphere ────────────────────────────────────
     const atm1 = new THREE.Mesh(
       new THREE.SphereGeometry(1.13, 32, 32),
-      new THREE.MeshBasicMaterial({ color: 0x99ccff, transparent: true, opacity: 0.07, side: THREE.BackSide })
+      new THREE.MeshBasicMaterial({ color: 0x99ccff, transparent: true, opacity: 0.07, side: THREE.BackSide, depthWrite: false })
     );
     const atm2 = new THREE.Mesh(
       new THREE.SphereGeometry(1.06, 32, 32),
-      new THREE.MeshBasicMaterial({ color: 0xbbddff, transparent: true, opacity: 0.05 })
+      new THREE.MeshBasicMaterial({ color: 0xbbddff, transparent: true, opacity: 0.05, depthWrite: false })
     );
     scene.add(atm1, atm2);
 

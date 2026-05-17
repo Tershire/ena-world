@@ -12,24 +12,6 @@ const base = import.meta.env.BASE_URL;
 
     </section>
 
-    <!-- Station cards below the fold -->
-    <section class="stations">
-      <a href={`${base}/central-lab`} class="station-card central-card">
-        <span class="card-label">Central Research Station</span>
-        <h2>Central Lab</h2>
-        <p>Navigation theory, SLAM algorithms, Kalman filtering, and estimation.</p>
-      </a>
-      <a href={`${base}/marine-lab`} class="station-card marine-card">
-        <span class="card-label">Marine Research Station</span>
-        <h2>Marine Lab</h2>
-        <p>Underwater acoustics, sonar-based navigation, and oceanic sensing.</p>
-      </a>
-      <a href={`${base}/aerospace-lab`} class="station-card aerospace-card">
-        <span class="card-label">Aerospace Research Station</span>
-        <h2>Aerospace Lab</h2>
-        <p>INS, GNSS, aerial SLAM, and satellite navigation systems.</p>
-      </a>
-    </section>
   </main>
 </BaseLayout>
 
@@ -42,58 +24,4 @@ const base = import.meta.env.BASE_URL;
     background: radial-gradient(ellipse at 50% 60%, #1a2a3a 0%, #060e1a 100%);
   }
 
-  /* ── Station cards ──────────────────────────────── */
-  .stations {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 1.5rem;
-    max-width: 1100px;
-    margin: 0 auto;
-    padding: 5rem 2rem;
-  }
-
-  .station-card {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    padding: 2rem;
-    border-radius: 8px;
-    border: 1px solid rgba(196, 154, 108, 0.25);
-    text-decoration: none;
-    color: var(--color-ink);
-    transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
-    background: rgba(245, 234, 214, 0.7);
-  }
-
-  .station-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 24px rgba(44, 31, 14, 0.12);
-  }
-
-  .card-label {
-    font-size: 0.65rem;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    color: var(--color-ink-faded);
-  }
-
-  .station-card h2 {
-    font-size: 1.5rem;
-    margin: 0;
-  }
-
-  .station-card p {
-    font-size: 0.9rem;
-    color: var(--color-ink-faded);
-    font-style: italic;
-    margin: 0;
-  }
-
-  .central-card   { border-color: rgba(196, 154, 108, 0.4); }
-  .marine-card    { border-color: rgba(58, 107, 139, 0.4); }
-  .aerospace-card { border-color: rgba(26, 35, 126, 0.4); }
-
-  .central-card h2   { color: var(--color-rust); }
-  .marine-card h2    { color: var(--color-sky); }
-  .aerospace-card h2 { color: #1a237e; }
 </style>
