@@ -35,8 +35,9 @@ sync_station() {
 
   mkdir -p "$dst"
   rsync -av --delete \
-    --include="*.md" \
     --exclude=".*" \
+    --include="*/" \
+    --include="*.md" \
     --exclude="*" \
     "${src}/" "${dst}/"
   echo "  [ok]   ${station}"
