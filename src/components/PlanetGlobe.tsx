@@ -558,6 +558,93 @@ function buildStation(
   return group;
 }
 
+// ── Wildlife helpers ─────────────────────────────────────
+
+function initTangentDir(pos: THREE.Vector3): THREE.Vector3 {
+  const ref = Math.abs(pos.y) < 0.9
+    ? new THREE.Vector3(0, 1, 0)
+    : new THREE.Vector3(1, 0, 0);
+  return new THREE.Vector3().crossVectors(pos, ref).normalize();
+}
+
+function stepSphere(
+  pos: THREE.Vector3, dir: THREE.Vector3, speed: number, turnBias: number,
+): void {
+  const newPos = pos.clone().addScaledVector(dir, speed).normalize();
+  let d = dir.clone().sub(newPos.clone().multiplyScalar(dir.dot(newPos))).normalize();
+  const right = new THREE.Vector3().crossVectors(d, newPos).normalize();
+  d.addScaledVector(right, turnBias);
+  const dp = d.dot(newPos);
+  if (!isNaN(dp)) d.sub(newPos.clone().multiplyScalar(dp)).normalize();
+  pos.copy(newPos);
+  dir.copy(d);
+}
+
+function placeAnimal(
+  group: THREE.Group, pos: THREE.Vector3, dir: THREE.Vector3,
+  r: number, pq: THREE.Quaternion,
+): void {
+  group.position.copy(pos.clone().multiplyScalar(r).applyQuaternion(pq));
+  const up    = pos.clone().normalize();
+  const right = new THREE.Vector3().crossVectors(up, dir).normalize();
+  const fwd   = new THREE.Vector3().crossVectors(right, up).normalize();
+  const lq    = new THREE.Quaternion().setFromRotationMatrix(
+    new THREE.Matrix4().makeBasis(right, up, fwd),
+  );
+  group.quaternion.copy(pq).multiply(lq);
+}
+
+function buildParrot(): { group: THREE.Group; lWing: THREE.Mesh; rWing: THREE.Mesh } {
+  const g       = new THREE.Group();
+  const bodyMat = new THREE.MeshLambertMaterial({ color: 0xdd2211 });
+  const wingMat = new THREE.MeshLambertMaterial({ color: 0x1a44cc });
+
+  const bodyGeo = new THREE.CapsuleGeometry(0.006, 0.015, 4, 6);
+  bodyGeo.rotateX(Math.PI / 2);
+  g.add(new THREE.Mesh(bodyGeo, bodyMat));
+
+  const headGeo = new THREE.SphereGeometry(0.005, 6, 6);
+  headGeo.translate(0, 0.001, 0.012);
+  g.add(new THREE.Mesh(headGeo, new THREE.MeshLambertMaterial({ color: 0xffcc22 })));
+
+  const tailGeo = new THREE.BoxGeometry(0.004, 0.002, 0.018);
+  tailGeo.translate(0, 0, -0.018);
+  g.add(new THREE.Mesh(tailGeo, new THREE.MeshLambertMaterial({ color: 0x22aa44 })));
+
+  const lWing = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.002, 0.013), wingMat);
+  const rWing = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.002, 0.013), wingMat);
+  lWing.position.set(-0.011, 0, 0);
+  rWing.position.set( 0.011, 0, 0);
+  g.add(lWing, rWing);
+
+  return { group: g, lWing, rWing };
+}
+
+function buildDolphin(): { group: THREE.Group; tail: THREE.Group } {
+  const g   = new THREE.Group();
+  const mat = new THREE.MeshLambertMaterial({ color: 0x5a8aaa });
+
+  const bodyGeo = new THREE.CapsuleGeometry(0.008, 0.036, 4, 8);
+  bodyGeo.rotateX(Math.PI / 2);
+  g.add(new THREE.Mesh(bodyGeo, mat));
+
+  const dorsalGeo = new THREE.BoxGeometry(0.003, 0.009, 0.008);
+  dorsalGeo.translate(0, 0.008, -0.002);
+  g.add(new THREE.Mesh(dorsalGeo, mat));
+
+  // Tail pivot group — rotated to flap flukes up/down
+  const tail = new THREE.Group();
+  tail.position.set(0, 0, -0.020);
+  [-1, 1].forEach((s) => {
+    const fg = new THREE.BoxGeometry(0.014, 0.002, 0.008);
+    fg.translate(s * 0.007, 0, -0.004);
+    tail.add(new THREE.Mesh(fg, mat));
+  });
+  g.add(tail);
+
+  return { group: g, tail };
+}
+
 // ── Stars ────────────────────────────────────────────────
 function buildStars(): THREE.Points {
   const count = 2000;
@@ -633,6 +720,42 @@ export default function PlanetGlobe({ base }: { base: string }) {
       const g = buildStation(s, getHeight);
       scene.add(g);
       stationGroups.push(g);
+    });
+
+    // ── Wildlife ──────────────────────────────────────
+    interface ParrotState {
+      pos: THREE.Vector3; dir: THREE.Vector3;
+      group: THREE.Group; lWing: THREE.Mesh; rWing: THREE.Mesh;
+      state: 'fly' | 'perch'; timer: number; turnBias: number;
+    }
+    const parrots: ParrotState[] = (
+      [[1.25, 0.7], [1.40, 2.8], [1.10, -0.3]] as [number, number][]
+    ).map(([phi, theta], i) => {
+      const pos = new THREE.Vector3(
+        Math.sin(phi) * Math.cos(theta), Math.cos(phi), Math.sin(phi) * Math.sin(theta),
+      );
+      const { group, lWing, rWing } = buildParrot();
+      scene.add(group);
+      return { pos, dir: initTangentDir(pos), group, lWing, rWing,
+               state: 'fly' as const, timer: 2 + i * 1.7, turnBias: 0 };
+    });
+
+    interface DolphinState {
+      pos: THREE.Vector3; dir: THREE.Vector3;
+      group: THREE.Group; tail: THREE.Group;
+      state: 'swim' | 'jump'; timer: number; jumpProgress: number; turnBias: number;
+    }
+    const dolphins: DolphinState[] = (
+      [[1.57, -0.6], [1.50, 1.8]] as [number, number][]
+    ).map(([phi, theta], i) => {
+      const pos = new THREE.Vector3(
+        Math.sin(phi) * Math.cos(theta), Math.cos(phi), Math.sin(phi) * Math.sin(theta),
+      );
+      const { group, tail } = buildDolphin();
+      scene.add(group);
+      return { pos, dir: initTangentDir(pos), group, tail,
+               state: 'swim' as const, timer: 2 + i * 2.3, jumpProgress: 0,
+               turnBias: i * 2.1 }; // repurposed as turnPhase seed
     });
 
     // ── Atmosphere ────────────────────────────────────
@@ -762,10 +885,14 @@ export default function PlanetGlobe({ base }: { base: string }) {
     let raf: number;
     const t0 = performance.now();
     const euler = new THREE.Euler();
+    let prevT = 0;
+    const planetQuat = new THREE.Quaternion();
 
     function animate() {
       raf = requestAnimationFrame(animate);
       const t = (performance.now() - t0) / 1000;
+      const dt = Math.min(t - prevT, 0.05);
+      prevT = t;
       oceanUniforms.uTime.value = t;
 
       // Inertia + auto-spin
@@ -777,6 +904,7 @@ export default function PlanetGlobe({ base }: { base: string }) {
       }
 
       euler.set(rotX, rotY, 0);
+      planetQuat.setFromEuler(euler);
       terrainMesh.rotation.copy(euler);
       ocean.rotation.copy(euler);
       tempTrees.rotation.copy(euler);
@@ -800,6 +928,61 @@ export default function PlanetGlobe({ base }: { base: string }) {
       pinMeshes.forEach((pin, i) => {
         pin.position.copy(orbs[i].position);
       });
+
+      // ── Parrots ─────────────────────────────────────
+      for (const p of parrots) {
+        p.timer -= dt;
+        if (p.state === 'fly') {
+          stepSphere(p.pos, p.dir, 0.20 * dt, p.turnBias);
+          const flap = Math.sin(t * 14) * 0.75;
+          p.lWing.rotation.z =  flap;
+          p.rWing.rotation.z = -flap;
+          placeAnimal(p.group, p.pos, p.dir, 1.025, planetQuat);
+          if (p.timer <= 0) {
+            p.state = 'perch';
+            p.timer = 2.5 + Math.random() * 4.0;
+          }
+        } else {
+          p.lWing.rotation.z =  0.1;
+          p.rWing.rotation.z = -0.1;
+          placeAnimal(p.group, p.pos, p.dir, 1.016, planetQuat);
+          if (p.timer <= 0) {
+            p.state = 'fly';
+            p.timer = 5.0 + Math.random() * 6.0;
+            p.turnBias = (Math.random() - 0.5) * 0.12;
+          }
+        }
+      }
+
+      // ── Dolphins ────────────────────────────────────
+      for (const d of dolphins) {
+        d.timer -= dt;
+        if (d.state === 'swim') {
+          const tb = Math.sin(t * 0.18 + d.turnBias) * 0.0013;
+          stepSphere(d.pos, d.dir, 0.10 * dt, tb);
+          d.tail.rotation.x = Math.sin(t * 6.5) * 0.50;
+          placeAnimal(d.group, d.pos, d.dir, 1.003, planetQuat);
+          if (d.timer <= 0) {
+            d.state = 'jump';
+            d.timer = 1.2;
+            d.jumpProgress = 0;
+          }
+        } else {
+          d.jumpProgress += dt / 1.2;
+          const arc = Math.sin(Math.min(d.jumpProgress, 1.0) * Math.PI);
+          d.tail.rotation.x = Math.sin(t * 4.0) * 0.30;
+          placeAnimal(d.group, d.pos, d.dir, 1.003 + arc * 0.065, planetQuat);
+          const pitchQ = new THREE.Quaternion().setFromAxisAngle(
+            new THREE.Vector3(1, 0, 0),
+            (d.jumpProgress < 0.5 ? -1 : 1) * arc * 0.7,
+          );
+          d.group.quaternion.multiply(pitchQ);
+          if (d.timer <= 0) {
+            d.state = 'swim';
+            d.timer = 7.0 + Math.random() * 8.0;
+          }
+        }
+      }
 
       renderer.render(scene, camera);
     }
