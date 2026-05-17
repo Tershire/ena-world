@@ -3,8 +3,9 @@
 /* ── Design tokens ─────────────────────────────────────── */
 :root {
   /* Parchment / map palette */
-  --color-parchment:   #f5ead6;
+  --color-parchment:   #ffffff;
   --color-ink:         #2c1f0e;
+  --bg-panel:          rgba(255, 255, 255, 0.92);
   --color-ink-faded:   #6b4f2a;
   --color-sepia:       #c49a6c;
   --color-rust:        #8b3a2a;
@@ -22,9 +23,21 @@
   --aero-stratosphere: #1a237e;
   --aero-exosphere:    #080820;
 
-  --font-display: 'Palatino Linotype', 'Book Antiqua', Palatino, Georgia, serif;
-  --font-body:    Georgia, 'Times New Roman', serif;
+  --font-display: 'Abel', sans-serif;
+  --font-body:    'Abel', sans-serif;
   --font-mono:    'Fira Code', 'Cascadia Code', 'Courier New', monospace;
+}
+
+/* ── Dark theme ─────────────────────────────────────────── */
+[data-theme="dark"] {
+  --color-parchment: #14110d;
+  --bg-panel:        rgba(22, 20, 18, 0.93);
+  --color-ink:       #ddd0b8;
+  --color-ink-faded: #9a8870;
+  --color-sepia:     #c49a6c;
+  --color-rust:      #c87050;
+  --color-moss:      #7ab860;
+  --color-sky:       #6aaabf;
 }
 
 /* ── Base ──────────────────────────────────────────────── */
@@ -37,6 +50,7 @@ body {
   color: var(--color-ink);
   font-family: var(--font-body);
   line-height: 1.75;
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
 /* ── Typography ────────────────────────────────────────── */

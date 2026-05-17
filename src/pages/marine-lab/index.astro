@@ -1,12 +1,23 @@
 ---
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import ArticleGrid from '../../components/ArticleGrid';
+import type { ArticleItem } from '../../components/ArticleGrid';
 
-const articles = (await getCollection('marine-lab'))
+const raw = (await getCollection('marine-lab'))
   .filter((a) => !a.data.draft)
   .sort((a, b) => (b.data.date?.valueOf() ?? 0) - (a.data.date?.valueOf() ?? 0));
 
 const base = import.meta.env.BASE_URL;
+
+const articles: ArticleItem[] = raw.map((a) => ({
+  id:          a.id,
+  title:       a.data.title,
+  description: a.data.description,
+  date:        a.data.date?.toISOString(),
+  tags:        a.data.tags ?? [],
+  href:        `${base}marine-lab/${a.id}`,
+}));
 ---
 
 <BaseLayout title="Marine Lab">
@@ -14,29 +25,15 @@ const base = import.meta.env.BASE_URL;
     <header class="station-header">
       <p class="station-label">Marine Research Station</p>
       <h1>Marine Lab</h1>
-      <p class="station-desc">Underwater navigation, acoustic sensing, and oceanic SLAM.</p>
+      <p class="station-desc">Underwater navigation · acoustic sensing · oceanic SLAM</p>
     </header>
 
-    <ul class="article-list">
-      {articles.map((article) => (
-        <li>
-          <a href={`${base}/marine-lab/${article.id}`} class="article-card">
-            <span class="card-title">{article.data.title}</span>
-            {article.data.description && (
-              <span class="card-desc">{article.data.description}</span>
-            )}
-            {article.data.date && (
-              <time class="card-date" datetime={article.data.date.toISOString()}>
-                {article.data.date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
-              </time>
-            )}
-          </a>
-        </li>
-      ))}
-      {articles.length === 0 && (
-        <li class="empty">No articles yet. The depths await.</li>
-      )}
-    </ul>
+    <ArticleGrid
+      client:load
+      articles={articles}
+      accentVar="--color-sky"
+      emptyMsg="No articles yet. The depths await."
+    />
   </main>
 </BaseLayout>
 
@@ -48,82 +45,20 @@ const base = import.meta.env.BASE_URL;
   }
 
   .station-header {
-    margin-bottom: 3rem;
-    border-bottom: 1px solid var(--color-sky);
-    padding-bottom: 2rem;
+    margin-bottom: 2.5rem;
+    border-bottom: 1px solid var(--color-sepia);
+    padding-bottom: 1.75rem;
   }
 
   .station-label {
     font-size: 0.7rem;
     letter-spacing: 0.15em;
     text-transform: uppercase;
-    color: var(--color-sky);
+    color: var(--color-ink-faded);
     margin-bottom: 0.5rem;
   }
 
-  .station-header h1 {
-    font-size: 2.5rem;
-    margin-bottom: 0.5rem;
-  }
+  .station-header h1 { font-size: 2.5rem; margin-bottom: 0.4rem; }
 
-  .station-desc {
-    color: var(--color-ink-faded);
-    font-style: italic;
-  }
-
-  .article-list {
-    list-style: none;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .article-card {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    grid-template-rows: auto auto;
-    gap: 0.25rem 1rem;
-    padding: 1.25rem 1.5rem;
-    background: rgba(58, 107, 139, 0.08);
-    border: 1px solid rgba(58, 107, 139, 0.3);
-    border-radius: 6px;
-    text-decoration: none;
-    transition: border-color 0.2s, background 0.2s;
-  }
-
-  .article-card:hover {
-    border-color: var(--color-sky);
-    background: rgba(58, 107, 139, 0.15);
-  }
-
-  .card-title {
-    font-family: var(--font-display);
-    font-size: 1.1rem;
-    color: var(--color-ink);
-    grid-column: 1;
-    grid-row: 1;
-  }
-
-  .card-desc {
-    font-size: 0.875rem;
-    color: var(--color-ink-faded);
-    font-style: italic;
-    grid-column: 1;
-    grid-row: 2;
-  }
-
-  .card-date {
-    font-size: 0.75rem;
-    color: var(--color-ink-faded);
-    grid-column: 2;
-    grid-row: 1;
-    align-self: center;
-  }
-
-  .empty {
-    color: var(--color-ink-faded);
-    font-style: italic;
-    padding: 2rem 0;
-  }
+  .station-desc { color: var(--color-ink-faded); font-style: italic; }
 </style>

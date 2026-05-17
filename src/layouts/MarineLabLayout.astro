@@ -9,223 +9,465 @@ interface Props {
 }
 
 const { title, description, date, tags = [] } = Astro.props;
+const base = import.meta.env.BASE_URL;
 ---
 
 <BaseLayout title={title} description={description}>
-  <!-- Depth HUD: fixed left side indicator -->
-  <aside id="depth-hud" aria-hidden="true">
-    <div class="depth-track">
-      <div id="depth-marker" class="depth-marker"></div>
-    </div>
-    <div class="zone-labels">
-      <span data-zone="epipelagic">Epipelagic</span>
-      <span data-zone="mesopelagic">Mesopelagic</span>
-      <span data-zone="bathypelagic">Bathypelagic</span>
-      <span data-zone="abyssopelagic">Abyssopelagic</span>
-    </div>
-  </aside>
+  <!-- Fixed ocean background -->
+  <div id="marine-bg" aria-hidden="true">
+    <img id="ocean-day"   src={`${base}images/functional/ocean_profile(day).webp`}   alt="" />
+    <img id="ocean-night" src={`${base}images/functional/ocean_profile(night).webp`} alt="" />
+  </div>
 
-  <main id="pelagic-main" class="article-wrap pelagic-bg">
-    <!-- Particles: bioluminescent dots injected by JS -->
-    <canvas id="biolum-canvas" aria-hidden="true"></canvas>
+  <!-- Top reading progress bar -->
+  <div id="reading-bar"></div>
 
-    <article class="prose">
-      <header class="article-header">
-        <div class="station-badge">Marine Research Station</div>
-        <h1>{title}</h1>
-        {description && <p class="description">{description}</p>}
-        <div class="meta">
-          {date && (
-            <time datetime={date.toISOString()}>
-              {date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-            </time>
-          )}
-          {tags.length > 0 && (
-            <ul class="tags">
-              {tags.map((tag) => <li class="tag">#{tag}</li>)}
-            </ul>
-          )}
+  <!--
+    Left depth ruler — three columns:
+      [zone labels (right-aligned)] | [vertical line] | [indicator readout]
+    Labels and readout are on opposite sides so they never overlap.
+  -->
+  <div id="depth-ruler" aria-hidden="true">
+    <div id="ruler-labels"></div>
+    <div id="ruler-line">
+      <div id="ruler-pip"></div>
+    </div>
+    <div id="ruler-readout">
+      <div class="ruler-value">
+        <span id="ruler-num">0</span><span class="ruler-unit"> m</span>
+      </div>
+      <div id="ruler-zone-name">Epipelagic</div>
+    </div>
+  </div>
+
+  <div class="article-page">
+    <main>
+      <article class="prose">
+        <header class="article-header">
+          <div class="station-badge">Marine Research Station</div>
+          <h1>{title}</h1>
+          {description && <p class="description">{description}</p>}
+          <div class="meta">
+            {date && (
+              <time datetime={date.toISOString()}>
+                {date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+              </time>
+            )}
+            {tags.length > 0 && (
+              <ul class="tags">
+                {tags.map((tag) => <li class="tag">#{tag}</li>)}
+              </ul>
+            )}
+          </div>
+        </header>
+        <slot />
+      </article>
+    </main>
+
+    <!-- Right sidebar: progress + TOC only -->
+    <aside id="toc-sidebar">
+      <div class="sidebar-card">
+        <div class="progress-section">
+          <div class="progress-header">
+            <span class="sidebar-label">Progress</span>
+            <span id="progress-pct">0%</span>
+          </div>
+          <div class="progress-track">
+            <div id="progress-fill"></div>
+          </div>
         </div>
-      </header>
 
-      <slot />
-    </article>
-  </main>
+        <div class="toc-section">
+          <p class="sidebar-label">Contents</p>
+          <ul id="toc-list"></ul>
+        </div>
+      </div>
+    </aside>
+  </div>
 </BaseLayout>
 
 <script>
-  // Pelagic zone scroll effect
+  const imgDay    = document.getElementById('ocean-day')!   as HTMLImageElement;
+  const imgNight  = document.getElementById('ocean-night')! as HTMLImageElement;
+  const bar       = document.getElementById('reading-bar')!;
+  const fill      = document.getElementById('progress-fill')!;
+  const pctEl     = document.getElementById('progress-pct')!;
+  const tocList   = document.getElementById('toc-list')!;
+  const rulerLabels   = document.getElementById('ruler-labels')!;
+  const rulerLine2    = document.getElementById('ruler-line')!;
+  const rulerPip      = document.getElementById('ruler-pip')!;
+  const rulerReadout  = document.getElementById('ruler-readout')!;
+  const rulerNum      = document.getElementById('ruler-num')!;
+  const rulerZoneName = document.getElementById('ruler-zone-name')!;
+
+  // Day/night switching
+  function syncImages() {
+    const dark = document.documentElement.dataset.theme === 'dark';
+    imgDay.style.opacity   = dark ? '0' : '1';
+    imgNight.style.opacity = dark ? '1' : '0';
+  }
+  syncImages();
+  new MutationObserver(syncImages).observe(document.documentElement, {
+    attributes: true, attributeFilter: ['data-theme'],
+  });
+
+  // Depth config
+  const MAX_DEPTH = 4000;
   const zones = [
-    { name: 'epipelagic',    start: 0,    bg: '#b0d4e8', text: '#2c1f0e' },
-    { name: 'mesopelagic',   start: 0.25, bg: '#1a5276', text: '#d6eaf8' },
-    { name: 'bathypelagic',  start: 0.55, bg: '#0d2137', text: '#aed6f1' },
-    { name: 'abyssopelagic', start: 0.80, bg: '#060e1a', text: '#7fb3d3' },
+    { name: 'Epipelagic',    minDepth: 0    },
+    { name: 'Mesopelagic',   minDepth: 200  },
+    { name: 'Bathypelagic',  minDepth: 1000 },
+    { name: 'Abyssopelagic', minDepth: 4000 },
   ] as const;
 
-  const main = document.getElementById('pelagic-main')!;
-  const marker = document.getElementById('depth-marker')!;
-  const hudLabels = document.querySelectorAll<HTMLElement>('[data-zone]');
+  // Build zone labels (LEFT) + tick marks on the line — inline styles required for JS-created elements
+  zones.forEach((z) => {
+    const pct = (z.minDepth / MAX_DEPTH) * 100;
 
-  function lerp(a: string, b: string, t: number): string {
-    // Simple hex lerp via element style — use CSS custom property approach
-    return t < 0.5 ? a : b;
-  }
+    const label = document.createElement('div');
+    label.style.cssText = `
+      position: absolute;
+      right: 6px;
+      top: ${pct}%;
+      transform: translateY(-50%);
+      font-size: 0.55rem;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: #ffffff;
+      white-space: nowrap;
+      text-align: right;
+    `;
+    label.textContent = z.name;
+    rulerLabels.appendChild(label);
 
-  function getZone(progress: number) {
-    let current = zones[0];
-    for (const z of zones) {
-      if (progress >= z.start) current = z;
-    }
-    return current;
-  }
+    const tick = document.createElement('div');
+    tick.style.cssText = `
+      position: absolute;
+      top: ${pct}%;
+      left: -4px;
+      width: 10px;
+      height: 1px;
+      background: rgba(255,255,255,0.55);
+      transform: translateY(-50%);
+    `;
+    rulerLine2.appendChild(tick);
+  });
 
+  // Build TOC
+  const headings = Array.from(
+    document.querySelectorAll<HTMLHeadingElement>('.prose h2, .prose h3, .prose h4')
+  );
+  headings.forEach((h, i) => {
+    if (!h.id) h.id = `s${i}`;
+    const level = parseInt(h.tagName[1]);
+    const li = document.createElement('li');
+    const a  = document.createElement('a');
+    a.href = `#${h.id}`;
+    a.textContent = h.textContent;
+    a.style.cssText = `
+      display:block;
+      padding:0.28rem 0.5rem;
+      font-size:${level === 2 ? '0.8rem' : '0.74rem'};
+      font-weight:${level === 2 ? '500' : '400'};
+      color:var(--color-ink-faded);
+      text-decoration:none;
+      border-radius:0.3rem;
+      margin-left:${(level - 2) * 0.75}rem;
+      border-left:2px solid transparent;
+      line-height:1.4;
+      transition:color 0.1s, background 0.1s, border-color 0.1s;
+    `;
+    li.appendChild(a);
+    tocList.appendChild(li);
+  });
+
+  // Scroll handler
   function onScroll() {
-    const scrollTop = window.scrollY;
-    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
-    const progress = Math.min(scrollTop / docHeight, 1);
+    const max      = document.documentElement.scrollHeight - window.innerHeight;
+    const progress = max > 0 ? Math.min(window.scrollY / max, 1) : 0;
 
-    const zone = getZone(progress);
+    // Ocean image: surface → abyss
+    imgDay.style.objectPosition   = `center ${progress * 100}%`;
+    imgNight.style.objectPosition = `center ${progress * 100}%`;
 
-    main.style.backgroundColor = zone.bg;
-    main.style.color = zone.text;
+    // Progress bar
+    const pct = progress * 100;
+    bar.style.width   = `${pct}%`;
+    fill.style.width  = `${pct}%`;
+    pctEl.textContent = `${Math.round(pct)}%`;
 
-    // Move depth marker
-    marker.style.top = `${progress * 100}%`;
+    // Depth ruler: pip and readout move together
+    const depth = Math.round(progress * MAX_DEPTH);
+    rulerNum.textContent = depth.toLocaleString();
+    rulerPip.style.top     = `${pct}%`;
+    rulerReadout.style.top = `${pct}%`;
 
-    // Highlight active zone label
-    hudLabels.forEach((el) => {
-      el.classList.toggle('active', el.dataset.zone === zone.name);
-    });
+    let zone = zones[0];
+    for (const z of zones) { if (depth >= z.minDepth) zone = z; }
+    rulerZoneName.textContent = zone.name;
   }
 
   window.addEventListener('scroll', onScroll, { passive: true });
   onScroll();
+
+  // Active heading
+  const links = () => tocList.querySelectorAll<HTMLAnchorElement>('a');
+  const obs = new IntersectionObserver(
+    (entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        links().forEach((a) => {
+          const active = a.getAttribute('href') === `#${e.target.id}`;
+          a.style.color           = active ? 'var(--color-sky)' : 'var(--color-ink-faded)';
+          a.style.fontWeight      = active ? '600' : (a.style.fontSize === '0.8rem' ? '500' : '400');
+          a.style.borderLeftColor = active ? 'var(--color-sky)' : 'transparent';
+          a.style.background      = active ? 'rgba(58,107,139,0.10)' : '';
+        });
+      }
+    },
+    { rootMargin: '-10% 0% -60% 0%' }
+  );
+  headings.forEach((h) => obs.observe(h));
 </script>
 
 <style>
-  /* ── Pelagic main ─────────────────────────────────── */
-  #pelagic-main {
-    position: relative;
-    min-height: 100vh;
-    padding: 3rem 2rem;
-    transition: background-color 0.6s ease, color 0.6s ease;
-  }
-
-  .article-wrap {
-    max-width: 800px;
-    margin: 0 auto;
-  }
-
-  /* ── Bioluminescence canvas ───────────────────────── */
-  #biolum-canvas {
+  /* ── Ocean background ─────────────────────────────── */
+  #marine-bg {
     position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+  }
+
+  #marine-bg img {
+    position: absolute;
     inset: 0;
     width: 100%;
     height: 100%;
-    pointer-events: none;
-    z-index: 0;
-    opacity: 0;
-    transition: opacity 1s ease;
+    object-fit: cover;
+    object-position: center 0%;
+    transition: opacity 0.3s ease;
   }
 
-  /* ── Depth HUD ────────────────────────────────────── */
-  #depth-hud {
+  /* ── Top progress bar (mobile only — sidebar shows progress on desktop) */
+  #reading-bar {
+    position: fixed;
+    top: 0; left: 0;
+    height: 3px;
+    width: 0%;
+    background: linear-gradient(90deg, #5bc8e8, #3a6b8b);
+    z-index: 200;
+    transition: width 0.1s linear;
+  }
+
+  @media (min-width: 1060px) {
+    #reading-bar { display: none; }
+  }
+
+  /* ── Left depth ruler ─────────────────────────────── */
+  #depth-ruler {
     position: fixed;
     left: 1rem;
-    top: 50%;
-    transform: translateY(-50%);
-    display: flex;
-    gap: 0.5rem;
-    z-index: 50;
+    top: calc(52px + 3rem);
+    bottom: 3rem;
+    display: none;
+    pointer-events: none;
+    z-index: 20;
+    /* three-column flex: labels | line | readout */
+    align-items: stretch;
   }
 
-  .depth-track {
-    width: 3px;
-    height: 160px;
-    background: rgba(255,255,255,0.2);
+  @media (min-width: 1380px) {
+    #depth-ruler { display: flex; }
+  }
+
+  /* LEFT column: zone names, right-aligned up to the line */
+  #ruler-labels {
+    width: 88px;
+    height: 100%;
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  /* CENTER column: the vertical line */
+  #ruler-line {
+    width: 2px;
+    flex-shrink: 0;
+    background: linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.15) 0%,
+      rgba(255, 255, 255, 0.5) 100%
+    );
     border-radius: 999px;
     position: relative;
   }
 
-  .depth-marker {
+  /* Moving pip: ring + center dot */
+  #ruler-pip {
     position: absolute;
-    left: -3px;
-    width: 9px;
-    height: 9px;
-    background: #7fb3d3;
+    left: 50%;
+    top: 0%;
+    transform: translate(-50%, -50%);
+    width: 12px;
+    height: 12px;
     border-radius: 50%;
-    top: 0;
-    transition: top 0.3s ease;
+    border: 2px solid white;
+    background: transparent;
+    box-shadow: 0 0 6px rgba(255, 255, 255, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
-  .zone-labels {
+  #ruler-pip::after {
+    content: '';
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: white;
+  }
+
+  /* RIGHT column: current depth + zone name, follows pip */
+  #ruler-readout {
+    position: absolute;
+    left: calc(88px + 2px + 8px); /* labels width + line width + gap */
+    top: 0%;
+    transform: translateY(-50%);
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    height: 160px;
-    font-size: 0.6rem;
+    gap: 0.1rem;
+  }
+
+  .ruler-value { line-height: 1; }
+
+  #ruler-num {
+    font-family: var(--font-mono);
+    font-size: 1rem;
+    font-weight: 600;
+    color: #ffffff;
+  }
+
+  .ruler-unit {
+    font-size: 0.7rem;
+    color: #ffffff;
+    font-family: var(--font-body);
+  }
+
+  #ruler-zone-name {
+    font-size: 0.58rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: rgba(255,255,255,0.3);
+    color: #ffffff;
   }
 
-  .zone-labels span.active {
-    color: rgba(255,255,255,0.9);
+  /* ── Page grid ────────────────────────────────────── */
+  .article-page {
+    display: grid;
+    grid-template-columns: 1fr;
+    max-width: 1160px;
+    margin: 0 auto;
+    padding: 3rem 2rem;
+    gap: 3rem;
+    align-items: start;
   }
 
-  /* ── Article header ───────────────────────────────── */
+  @media (min-width: 1060px) {
+    .article-page { grid-template-columns: 1fr 220px; }
+  }
+
+  /* ── Prose panel ─────────────────────────────────── */
+  main { min-width: 0; }
+
+  .prose {
+    background: var(--bg-panel);
+    padding: 2rem 2.5rem;
+    border-radius: 6px;
+    backdrop-filter: blur(3px);
+    max-width: none;
+  }
+
+  /* ── Sidebar ──────────────────────────────────────── */
+  #toc-sidebar { display: none; }
+
+  @media (min-width: 1060px) {
+    #toc-sidebar {
+      display: block;
+      position: sticky;
+      top: calc(52px + 2rem);
+      max-height: calc(100vh - 52px - 4rem);
+      overflow-y: auto;
+    }
+  }
+
+  .sidebar-card {
+    background: var(--bg-panel);
+    border: 1px solid var(--color-sepia);
+    border-radius: 1rem;
+    padding: 1.25rem;
+    backdrop-filter: blur(4px);
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  /* ── Progress section ─────────────────────────────── */
+  .progress-section { display: flex; flex-direction: column; gap: 0.45rem; }
+
+  .progress-header { display: flex; justify-content: space-between; align-items: center; }
+
+  .sidebar-label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-ink-faded);
+    font-family: var(--font-display);
+  }
+
+  #progress-pct { font-size: 0.75rem; font-weight: 600; color: var(--color-sky); }
+
+  .progress-track {
+    height: 4px;
+    background: rgba(196, 154, 108, 0.2);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+
+  #progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--color-sky), #5bc8e8);
+    border-radius: 999px;
+    transition: width 0.15s;
+  }
+
+  /* ── TOC ──────────────────────────────────────────── */
+  .toc-section { display: flex; flex-direction: column; gap: 0.5rem; }
+
+  #toc-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.05rem; }
+
+  /* ── Article header ─────────────────────────────────── */
   .station-badge {
-    font-size: 0.7rem;
+    font-size: 0.68rem;
     letter-spacing: 0.15em;
     text-transform: uppercase;
-    opacity: 0.6;
-    margin-bottom: 0.75rem;
+    color: var(--color-ink-faded);
+    margin-bottom: 0.6rem;
   }
 
   .article-header {
-    margin-bottom: 3rem;
+    margin-bottom: 2.5rem;
     padding-bottom: 1.5rem;
-    border-bottom: 1px solid rgba(255,255,255,0.15);
+    border-bottom: 1px solid var(--color-sepia);
   }
 
-  .article-header h1 {
-    font-size: 2.25rem;
-    margin-bottom: 0.5rem;
-    color: inherit;
-  }
+  .article-header h1 { font-size: 2.25rem; margin-bottom: 0.5rem; }
 
-  .description {
-    font-size: 1.1rem;
-    font-style: italic;
-    opacity: 0.7;
-    margin-bottom: 1rem;
-  }
+  .description { color: var(--color-ink-faded); font-size: 1.05rem; font-style: italic; margin-bottom: 1rem; }
 
-  .meta {
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
-    font-size: 0.85rem;
-    opacity: 0.6;
-  }
+  .meta { display: flex; align-items: center; gap: 1.5rem; font-size: 0.85rem; color: var(--color-ink-faded); }
 
-  .tags {
-    display: flex;
-    gap: 0.5rem;
-    list-style: none;
-    padding: 0;
-    margin: 0;
-  }
+  .tags { display: flex; gap: 0.5rem; list-style: none; padding: 0; margin: 0; }
 
-  .tag {
-    background: rgba(255,255,255,0.1);
-    padding: 0.15em 0.6em;
-    border-radius: 999px;
-    font-size: 0.8rem;
-  }
-
-  .prose {
-    position: relative;
-    z-index: 1;
-  }
+  .tag { background: rgba(196, 154, 108, 0.2); padding: 0.15em 0.6em; border-radius: 999px; font-size: 0.8rem; color: var(--color-ink-faded); }
 </style>

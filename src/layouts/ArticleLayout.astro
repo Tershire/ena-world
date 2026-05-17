@@ -12,36 +12,239 @@ const { title, description, date, tags = [] } = Astro.props;
 ---
 
 <BaseLayout title={title} description={description}>
-  <main class="article-wrap">
-    <article class="prose">
-      <header class="article-header">
-        <h1>{title}</h1>
-        {description && <p class="description">{description}</p>}
-        <div class="meta">
-          {date && (
-            <time datetime={date.toISOString()}>
-              {date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-            </time>
-          )}
-          {tags.length > 0 && (
-            <ul class="tags">
-              {tags.map((tag) => <li class="tag">#{tag}</li>)}
-            </ul>
-          )}
-        </div>
-      </header>
+  <!-- Top reading progress bar -->
+  <div id="reading-bar"></div>
 
-      <slot />
-    </article>
-  </main>
+  <div class="article-page" id="article-grid">
+    <!-- Article content -->
+    <main>
+      <article class="prose">
+        <header class="article-header">
+          <h1>{title}</h1>
+          {description && <p class="description">{description}</p>}
+          <div class="meta">
+            {date && (
+              <time datetime={date.toISOString()}>
+                {date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+              </time>
+            )}
+            {tags.length > 0 && (
+              <ul class="tags">
+                {tags.map((tag) => <li class="tag">#{tag}</li>)}
+              </ul>
+            )}
+          </div>
+        </header>
+        <slot />
+      </article>
+    </main>
+
+    <!-- Right sidebar: progress + TOC -->
+    <aside id="toc-sidebar">
+      <div class="sidebar-card">
+        <!-- Progress -->
+        <div class="progress-section">
+          <div class="progress-header">
+            <span class="sidebar-label">Progress</span>
+            <span id="progress-pct">0%</span>
+          </div>
+          <div class="progress-track">
+            <div id="progress-fill"></div>
+          </div>
+        </div>
+
+        <!-- TOC -->
+        <div class="toc-section">
+          <p class="sidebar-label">Contents</p>
+          <ul id="toc-list"></ul>
+        </div>
+      </div>
+    </aside>
+  </div>
 </BaseLayout>
 
+<script>
+  const bar          = document.getElementById('reading-bar')!;
+  const fill         = document.getElementById('progress-fill')!;
+  const pctEl        = document.getElementById('progress-pct')!;
+  const tocList      = document.getElementById('toc-list')!;
+
+  // ── Build TOC ──────────────────────────────────────────
+  const headings = Array.from(
+    document.querySelectorAll<HTMLHeadingElement>('.prose h2, .prose h3, .prose h4')
+  );
+  headings.forEach((h, i) => {
+    if (!h.id) h.id = `s${i}`;
+    const level = parseInt(h.tagName[1]);
+    const li    = document.createElement('li');
+    const a     = document.createElement('a');
+    a.href        = `#${h.id}`;
+    a.textContent = h.textContent;
+    a.style.cssText = `
+      display:block;
+      padding:0.28rem 0.5rem;
+      font-size:${level === 2 ? '0.8rem' : '0.74rem'};
+      font-weight:${level === 2 ? '500' : '400'};
+      color:var(--color-ink-faded);
+      text-decoration:none;
+      border-radius:0.3rem;
+      margin-left:${(level - 2) * 0.75}rem;
+      border-left:2px solid transparent;
+      line-height:1.4;
+      transition:color 0.1s, background 0.1s, border-color 0.1s;
+    `;
+    li.appendChild(a);
+    tocList.appendChild(li);
+  });
+
+  // ── Scroll handler ─────────────────────────────────────
+  function onScroll() {
+    const max = document.documentElement.scrollHeight - window.innerHeight;
+    const pct = max > 0 ? Math.min((window.scrollY / max) * 100, 100) : 0;
+
+    bar.style.width   = `${pct}%`;
+    fill.style.width  = `${pct}%`;
+    pctEl.textContent = `${Math.round(pct)}%`;
+  }
+
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  // ── Active heading via IntersectionObserver ────────────
+  const links = () => tocList.querySelectorAll<HTMLAnchorElement>('a');
+
+  const obs = new IntersectionObserver(
+    (entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        links().forEach((a) => {
+          const active = a.getAttribute('href') === `#${e.target.id}`;
+          a.style.color           = active ? 'var(--color-rust)' : 'var(--color-ink-faded)';
+          a.style.fontWeight      = active ? '600' : (a.dataset.level === '2' ? '500' : '400');
+          a.style.borderLeftColor = active ? 'var(--color-rust)' : 'transparent';
+          a.style.background      = active ? 'rgba(139,58,42,0.07)' : '';
+        });
+      }
+    },
+    { rootMargin: '-10% 0% -60% 0%' }
+  );
+  headings.forEach((h) => obs.observe(h));
+</script>
+
 <style>
-  .article-wrap {
-    max-width: 800px;
+  /* ── Top progress bar (mobile only — sidebar shows progress on desktop) */
+  #reading-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 3px;
+    width: 0%;
+    background: linear-gradient(90deg, var(--color-rust), var(--color-sepia));
+    z-index: 200;
+    transition: width 0.1s linear;
+  }
+
+  @media (min-width: 1060px) {
+    #reading-bar { display: none; }
+  }
+
+  /* ── Page grid ────────────────────────────────────── */
+  .article-page {
+    display: grid;
+    grid-template-columns: 1fr;
+    max-width: 1160px;
     margin: 0 auto;
     padding: 3rem 2rem;
+    gap: 3rem;
+    align-items: start;
   }
+
+  @media (min-width: 1060px) {
+    .article-page {
+      grid-template-columns: 1fr 240px;
+    }
+  }
+
+  /* ── Sidebar ──────────────────────────────────────── */
+  #toc-sidebar {
+    display: none;
+  }
+
+  @media (min-width: 1060px) {
+    #toc-sidebar {
+      display: block;
+      position: sticky;
+      top: calc(52px + 2rem);
+      max-height: calc(100vh - 52px - 4rem);
+      overflow-y: auto;
+    }
+  }
+
+  .sidebar-card {
+    background: var(--bg-panel);
+    border: 1px solid var(--color-sepia);
+    border-radius: 1rem;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  /* ── Progress section ─────────────────────────────── */
+  .progress-section { display: flex; flex-direction: column; gap: 0.45rem; }
+
+  .progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .sidebar-label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-ink-faded);
+    font-family: var(--font-display);
+  }
+
+  #progress-pct {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-rust);
+  }
+
+  .progress-track {
+    height: 4px;
+    background: rgba(196, 154, 108, 0.2);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+
+  #progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--color-rust), var(--color-sepia));
+    border-radius: 999px;
+    transition: width 0.15s;
+  }
+
+  /* ── TOC section ──────────────────────────────────── */
+  .toc-section { display: flex; flex-direction: column; gap: 0.5rem; }
+
+  #toc-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.05rem;
+  }
+
+  /* ── Article ──────────────────────────────────────── */
+  main { min-width: 0; }
+
+  .prose { max-width: 70ch; }
 
   .article-header {
     margin-bottom: 3rem;
@@ -49,14 +252,11 @@ const { title, description, date, tags = [] } = Astro.props;
     border-bottom: 1px solid var(--color-sepia);
   }
 
-  .article-header h1 {
-    font-size: 2.25rem;
-    margin-bottom: 0.5rem;
-  }
+  .article-header h1 { font-size: 2.25rem; margin-bottom: 0.5rem; }
 
   .description {
     color: var(--color-ink-faded);
-    font-size: 1.1rem;
+    font-size: 1.05rem;
     font-style: italic;
     margin-bottom: 1rem;
   }
@@ -69,13 +269,7 @@ const { title, description, date, tags = [] } = Astro.props;
     color: var(--color-ink-faded);
   }
 
-  .tags {
-    display: flex;
-    gap: 0.5rem;
-    list-style: none;
-    padding: 0;
-    margin: 0;
-  }
+  .tags { display: flex; gap: 0.5rem; list-style: none; padding: 0; margin: 0; }
 
   .tag {
     background: rgba(196, 154, 108, 0.2);

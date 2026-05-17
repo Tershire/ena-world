@@ -3,6 +3,8 @@ import { defineConfig } from 'astro/config';
 import react from '@astrojs/react';
 import tailwindcss from '@tailwindcss/vite';
 import remarkWikiLink from 'remark-wiki-link';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 
 // https://astro.build/docs/guides/deploy/github/
 export default defineConfig({
@@ -14,6 +16,7 @@ export default defineConfig({
   },
   markdown: {
     remarkPlugins: [
+      remarkMath,
       [
         remarkWikiLink,
         {
@@ -25,5 +28,6 @@ export default defineConfig({
         },
       ],
     ],
+    rehypePlugins: [rehypeKatex],
   },
 });
