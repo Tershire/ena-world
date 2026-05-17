@@ -48,15 +48,15 @@ const OCEAN_VERT = /* glsl */`
 `;
 
 const OCEAN_FRAG = /* glsl */`
+  uniform float uNight;
   varying vec3 vWorldNormal;
   varying float vWaveHeight;
 
   void main() {
-    vec3 deep  = vec3(0.05, 0.14, 0.38);   // dark navy deep water
-    vec3 reef  = vec3(0.10, 0.52, 0.54);   // tropical reef teal
-    vec3 crest = vec3(0.88, 0.96, 1.00);   // wave foam
+    vec3 deep  = mix(vec3(0.05, 0.14, 0.38), vec3(0.01, 0.04, 0.12), uNight);
+    vec3 reef  = mix(vec3(0.10, 0.52, 0.54), vec3(0.03, 0.10, 0.18), uNight);
+    vec3 crest = mix(vec3(0.88, 0.96, 1.00), vec3(0.22, 0.28, 0.38), uNight);
 
-    // Latitude: 0 = equator, 1 = pole (use normal.y since sphere normal = position direction)
     float lat = abs(vWorldNormal.y);
     float reefMix = (1.0 - smoothstep(0.14, 0.38, lat)) * 0.55;
     vec3 base = mix(deep, reef, reefMix);
@@ -292,8 +292,9 @@ function buildPalmTrees(positions: THREE.Vector3[]): THREE.Group {
 function buildStation(
   s: Station,
   getHeight: (nx: number, ny: number, nz: number) => number
-): THREE.Group {
+): { group: THREE.Group; emissiveMats: THREE.MeshLambertMaterial[] } {
   const group  = new THREE.Group();
+  const emissiveMats: THREE.MeshLambertMaterial[] = [];
   const sv     = stationUnitVec(s);
   const h      = getHeight(sv.x, sv.y, sv.z);
   const r      = 1.0 + Math.max(h, 0.010) + 0.003;
@@ -365,7 +366,9 @@ function buildStation(
     lhBody.position.copy(lhPos); lhBody.quaternion.copy(quat); group.add(lhBody);
     const lhLampGeo = new THREE.CylinderGeometry(0.009, 0.009, 0.011, 8);
     lhLampGeo.translate(0, 0.058 + 0.0055, 0);
-    const lhLamp = new THREE.Mesh(lhLampGeo, new THREE.MeshLambertMaterial({ color: 0xffe878 }));
+    const lhLampMat = new THREE.MeshLambertMaterial({ color: 0xffe878, emissive: new THREE.Color(0xffdd44), emissiveIntensity: 0 });
+    emissiveMats.push(lhLampMat);
+    const lhLamp = new THREE.Mesh(lhLampGeo, lhLampMat);
     lhLamp.position.copy(lhPos); lhLamp.quaternion.copy(quat); group.add(lhLamp);
     const lhCapGeo = new THREE.ConeGeometry(0.011, 0.010, 8);
     lhCapGeo.translate(0, 0.058 + 0.011 + 0.005, 0);
@@ -555,7 +558,7 @@ function buildStation(
     group.add(sVStab);
   }
 
-  return group;
+  return { group, emissiveMats };
 }
 
 // ── Wildlife helpers ─────────────────────────────────────
@@ -646,16 +649,64 @@ function buildDolphin(): { group: THREE.Group; tail: THREE.Group } {
 }
 
 // ── Stars ────────────────────────────────────────────────
-function buildStars(): THREE.Points {
-  const count = 2000;
-  const pos = new Float32Array(count * 3);
-  for (let i = 0; i < count * 3; i++) pos[i] = (Math.random() - 0.5) * 90;
+const STAR_VERT = /* glsl */`
+  uniform float uTime;
+  attribute float aPhase;
+  attribute float aSpeed;
+  varying float vBrightness;
+
+  void main() {
+    // Each star twinkles at its own rate and phase
+    vBrightness = 0.35 + 0.65 * abs(sin(uTime * aSpeed + aPhase));
+    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    gl_PointSize = 78.0 / -mvPosition.z;
+    gl_Position = projectionMatrix * mvPosition;
+  }
+`;
+
+const STAR_FRAG = /* glsl */`
+  varying float vBrightness;
+
+  void main() {
+    vec2 uv = gl_PointCoord - 0.5;
+    float r = length(uv);
+    if (r > 0.5) discard;
+    // Soft circular falloff * twinkle brightness
+    float alpha = (0.5 - r) * 2.0 * vBrightness;
+    gl_FragColor = vec4(1.0, 0.97, 0.91, alpha);
+  }
+`;
+
+function buildStars(): { points: THREE.Points; uniforms: { uTime: { value: number } } } {
+  const count = 2800;
+  const pos   = new Float32Array(count * 3);
+  const phase = new Float32Array(count);
+  const speed = new Float32Array(count);
+
+  for (let i = 0; i < count; i++) {
+    pos[i * 3]     = (Math.random() - 0.5) * 90;
+    pos[i * 3 + 1] = (Math.random() - 0.5) * 90;
+    pos[i * 3 + 2] = (Math.random() - 0.5) * 90;
+    phase[i] = Math.random() * Math.PI * 2;
+    // Mix of slow (0.3) and fast (2.5) twinklers
+    speed[i] = 0.3 + Math.random() * 2.2;
+  }
+
   const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  return new THREE.Points(
-    geo,
-    new THREE.PointsMaterial({ color: 0xfff8e8, size: 0.065, sizeAttenuation: true })
-  );
+  geo.setAttribute('position', new THREE.BufferAttribute(pos,   3));
+  geo.setAttribute('aPhase',   new THREE.BufferAttribute(phase, 1));
+  geo.setAttribute('aSpeed',   new THREE.BufferAttribute(speed, 1));
+
+  const uniforms = { uTime: { value: 0 } };
+  const mat = new THREE.ShaderMaterial({
+    uniforms,
+    vertexShader:   STAR_VERT,
+    fragmentShader: STAR_FRAG,
+    transparent: true,
+    depthWrite:  false,
+  });
+
+  return { points: new THREE.Points(geo, mat), uniforms };
 }
 
 // ── Main component ───────────────────────────────────────
@@ -682,21 +733,22 @@ export default function PlanetGlobe({ base }: { base: string }) {
     const sun = new THREE.DirectionalLight(0xfff0d0, 2.4);
     sun.position.set(3, 2, 2);
     scene.add(sun);
-    scene.add(new THREE.AmbientLight(0x445566, 1.0));
-    // Soft fill from opposite side
+    const ambient = new THREE.AmbientLight(0x445566, 1.0);
+    scene.add(ambient);
     const fill = new THREE.DirectionalLight(0xaaccff, 0.4);
     fill.position.set(-2, -1, -2);
     scene.add(fill);
 
     // ── Stars ─────────────────────────────────────────
-    scene.add(buildStars());
+    const { points: starPoints, uniforms: starUniforms } = buildStars();
+    scene.add(starPoints);
 
     // ── Terrain ───────────────────────────────────────
     const { mesh: terrainMesh, tempTreePos, palmTreePos, height: getHeight } = buildTerrain();
     scene.add(terrainMesh);
 
     // ── Ocean ─────────────────────────────────────────
-    const oceanUniforms = { uTime: { value: 0 } };
+    const oceanUniforms = { uTime: { value: 0 }, uNight: { value: 0 } };
     const oceanGeo = new THREE.SphereGeometry(1.0, 80, 80);
     const oceanMat = new THREE.ShaderMaterial({
       uniforms:       oceanUniforms,
@@ -714,12 +766,59 @@ export default function PlanetGlobe({ base }: { base: string }) {
     const palmTrees = buildPalmTrees(palmTreePos);
     scene.add(tempTrees, palmTrees);
 
+    // ── Dark mode setup ───────────────────────────────
+    // Collect all tintable materials (terrain + trees) with their original colors
+    const nightTintFactor = new THREE.Color(0.22, 0.25, 0.36);
+    interface TintEntry { mat: THREE.MeshLambertMaterial; day: THREE.Color; night: THREE.Color }
+    const tintEntries: TintEntry[] = [];
+    const _tintColor = new THREE.Color(); // scratch
+
+    // Terrain uses vertex colors; material.color multiplies them (default white = no tint)
+    tintEntries.push({
+      mat: terrainMesh.material as THREE.MeshLambertMaterial,
+      day: new THREE.Color(1, 1, 1),
+      night: new THREE.Color(nightTintFactor),
+    });
+    // Trees: save original + compute darkened version
+    [tempTrees, palmTrees].forEach((group) => {
+      group.traverse((obj) => {
+        if (!(obj instanceof THREE.InstancedMesh)) return;
+        const mat = obj.material as THREE.MeshLambertMaterial;
+        const day = mat.color.clone();
+        tintEntries.push({ mat, day, night: day.clone().multiply(nightTintFactor) });
+      });
+    });
+
+    // Day/night light configs (Color objects, reused each frame)
+    const daySunCol  = new THREE.Color(0xfff0d0);  const nightSunCol  = new THREE.Color(0xaabbee);
+    const dayAmbCol  = new THREE.Color(0x445566);  const nightAmbCol  = new THREE.Color(0x05090f);
+    const dayFillCol = new THREE.Color(0xaaccff);  const nightFillCol = new THREE.Color(0x0d1a35);
+
+    let darkTarget = document.documentElement.dataset.theme === 'dark' ? 1.0 : 0.0;
+    let darkBlend  = darkTarget; // start at final value to avoid flash on load
+
+    new MutationObserver(() => {
+      darkTarget = document.documentElement.dataset.theme === 'dark' ? 1.0 : 0.0;
+    }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
     // ── Research station buildings ─────────────────
     const stationGroups: THREE.Group[] = [];
+    const stationLights: THREE.PointLight[] = [];
+    const stationEmissiveMats: THREE.MeshLambertMaterial[] = [];
     STATIONS.forEach((s) => {
-      const g = buildStation(s, getHeight);
-      scene.add(g);
-      stationGroups.push(g);
+      const { group, emissiveMats } = buildStation(s, getHeight);
+      scene.add(group);
+      stationGroups.push(group);
+      stationEmissiveMats.push(...emissiveMats);
+
+      const sv = stationUnitVec(s);
+      const h  = getHeight(sv.x, sv.y, sv.z);
+      const r  = 1.0 + Math.max(h, 0.010) + 0.04;
+      const warmColor = s.id === 'central-lab' ? 0xff6611 : 0xffaa55;
+      const light = new THREE.PointLight(warmColor, 0, 0.12);
+      light.position.copy(sv.clone().multiplyScalar(r));
+      scene.add(light);
+      stationLights.push(light);
     });
 
     // ── Wildlife ──────────────────────────────────────
@@ -894,6 +993,25 @@ export default function PlanetGlobe({ base }: { base: string }) {
       const dt = Math.min(t - prevT, 0.05);
       prevT = t;
       oceanUniforms.uTime.value = t;
+      starUniforms.uTime.value  = t;
+
+      // ── Dark mode blend ──────────────────────────────
+      darkBlend += (darkTarget - darkBlend) * 0.04; // ~0.5 s transition at 60 fps
+      oceanUniforms.uNight.value = darkBlend;
+
+      // Lights
+      sun.color.copy(daySunCol).lerp(nightSunCol, darkBlend);
+      sun.intensity   = 2.4 - 1.9 * darkBlend;
+      ambient.color.copy(dayAmbCol).lerp(nightAmbCol, darkBlend);
+      ambient.intensity = 1.0 - 0.4 * darkBlend;
+      fill.color.copy(dayFillCol).lerp(nightFillCol, darkBlend);
+      fill.intensity  = 0.4 - 0.25 * darkBlend;
+
+      // Terrain + tree tint
+      tintEntries.forEach(({ mat, day, night }) => {
+        _tintColor.copy(day).lerp(night, darkBlend);
+        mat.color.copy(_tintColor);
+      });
 
       // Inertia + auto-spin
       if (!dragging) {
@@ -910,6 +1028,14 @@ export default function PlanetGlobe({ base }: { base: string }) {
       tempTrees.rotation.copy(euler);
       palmTrees.rotation.copy(euler);
       stationGroups.forEach((g) => { g.rotation.copy(euler); });
+      stationLights.forEach((light, i) => {
+        const sv = stationUnitVec(STATIONS[i]);
+        const h  = getHeight(sv.x, sv.y, sv.z);
+        const r  = 1.0 + Math.max(h, 0.010) + 0.04;
+        light.position.copy(sv.clone().multiplyScalar(r).applyEuler(euler));
+        light.intensity = darkBlend * 0.18;
+      });
+      stationEmissiveMats.forEach((mat) => { mat.emissiveIntensity = darkBlend * 0.45; });
 
       // Animate orbs (pulse + correct position follows planet rotation)
       orbs.forEach((orb, i) => {
