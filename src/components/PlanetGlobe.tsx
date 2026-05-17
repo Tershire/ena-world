@@ -55,7 +55,7 @@ const OCEAN_FRAG = /* glsl */`
   void main() {
     vec3 deep  = mix(vec3(0.05, 0.14, 0.38), vec3(0.01, 0.04, 0.12), uNight);
     vec3 reef  = mix(vec3(0.10, 0.52, 0.54), vec3(0.03, 0.10, 0.18), uNight);
-    vec3 crest = mix(vec3(0.88, 0.96, 1.00), vec3(0.22, 0.28, 0.38), uNight);
+    vec3 crest = mix(vec3(0.68, 0.80, 0.92), vec3(0.20, 0.26, 0.36), uNight);
 
     float lat = abs(vWorldNormal.y);
     float reefMix = (1.0 - smoothstep(0.14, 0.38, lat)) * 0.55;
@@ -63,7 +63,7 @@ const OCEAN_FRAG = /* glsl */`
 
     float light = max(dot(vWorldNormal, normalize(vec3(1.0, 1.2, 0.6))), 0.0);
     vec3 col = base * (0.72 + 0.28 * light);
-    col = mix(col, crest, smoothstep(0.006, 0.012, vWaveHeight));
+    col = mix(col, crest, 0.40 * smoothstep(0.008, 0.014, vWaveHeight));
     gl_FragColor = vec4(col, 0.92);
   }
 `;
