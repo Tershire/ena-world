@@ -2,6 +2,7 @@
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import ArticleGrid from '../../components/ArticleGrid';
+import NavTree from '../../components/NavTree.astro';
 import type { ArticleItem } from '../../components/ArticleGrid';
 
 const raw = (await getCollection('marine-lab'))
@@ -9,6 +10,8 @@ const raw = (await getCollection('marine-lab'))
   .sort((a, b) => (b.data.date?.valueOf() ?? 0) - (a.data.date?.valueOf() ?? 0));
 
 const base = import.meta.env.BASE_URL;
+const navBase = `${base}marine-lab`;
+const navArticles = raw.map((a) => ({ id: a.id, title: a.data.title }));
 
 const articles: ArticleItem[] = raw.map((a) => ({
   id:          a.id,
@@ -21,26 +24,62 @@ const articles: ArticleItem[] = raw.map((a) => ({
 ---
 
 <BaseLayout title="Marine Lab">
-  <main class="index-wrap">
-    <header class="station-header">
-      <p class="station-label">Marine Research Station</p>
-      <h1>Marine Lab</h1>
-      <p class="station-desc">Underwater navigation · acoustic sensing · oceanic SLAM</p>
-    </header>
+  <div class="index-layout">
+    {navArticles.length > 0 && (
+      <aside class="index-nav">
+        <div class="nav-sticky">
+          <NavTree articles={navArticles} base={navBase} accent="var(--color-sky)" label="Marine Lab" />
+        </div>
+      </aside>
+    )}
 
-    <ArticleGrid
-      client:load
-      articles={articles}
-      accentVar="--color-sky"
-      emptyMsg="No articles yet. The depths await."
-    />
-  </main>
+    <main class="index-main">
+      <header class="station-header">
+        <p class="station-label">Marine Research Station</p>
+        <h1>Marine Lab</h1>
+        <p class="station-desc">Underwater navigation · acoustic sensing · oceanic SLAM</p>
+      </header>
+
+      <ArticleGrid
+        client:load
+        articles={articles}
+        accentVar="--color-sky"
+        emptyMsg="No articles yet. The depths await."
+      />
+    </main>
+  </div>
 </BaseLayout>
 
 <style>
-  .index-wrap {
-    max-width: 800px;
-    margin: 0 auto;
+  .index-layout {
+    display: flex;
+    align-items: stretch;
+    min-height: calc(100vh - 52px);
+  }
+
+  .index-nav { display: none; }
+
+  @media (min-width: 1060px) {
+    .index-nav {
+      display: block;
+      width: 200px;
+      flex-shrink: 0;
+      align-self: stretch;
+      background: var(--bg-panel);
+    }
+  }
+
+  .nav-sticky {
+    position: sticky;
+    top: 52px;
+    max-height: calc(100vh - 52px);
+    overflow-y: auto;
+    padding: 1.25rem;
+  }
+
+  .index-main {
+    flex: 1;
+    min-width: 0;
     padding: 4rem 2rem;
   }
 

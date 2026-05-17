@@ -1,15 +1,21 @@
 ---
 import BaseLayout from './BaseLayout.astro';
+import NavTree from '../components/NavTree.astro';
 
 interface Props {
   title: string;
   description?: string;
   date?: Date;
   tags?: string[];
+  navArticles?: { id: string; title: string }[];
+  navBase?: string;
+  navLabel?: string;
+  currentId?: string;
 }
 
-const { title, description, date, tags = [] } = Astro.props;
+const { title, description, date, tags = [], navArticles, navBase, navLabel = 'Marine Lab', currentId } = Astro.props;
 const base = import.meta.env.BASE_URL;
+const hasNav = navArticles && navArticles.length > 0 && navBase;
 ---
 
 <BaseLayout title={title} description={description}>
@@ -23,66 +29,77 @@ const base = import.meta.env.BASE_URL;
   <div id="reading-bar"></div>
 
   <!--
-    Left depth ruler — three columns:
-      [zone labels (right-aligned)] | [vertical line] | [indicator readout]
-    Labels and readout are on opposite sides so they never overlap.
+    Right depth ruler — three columns:
+      [indicator readout] | [vertical line] | [zone labels (left-aligned)]
+    Ruler top = surface (0 m), bottom = abyss (4000 m).
+    Indicator moves DOWN as reading progress increases.
   -->
   <div id="depth-ruler" aria-hidden="true">
-    <div id="ruler-labels"></div>
-    <div id="ruler-line">
-      <div id="ruler-pip"></div>
-    </div>
     <div id="ruler-readout">
       <div class="ruler-value">
         <span id="ruler-num">0</span><span class="ruler-unit"> m</span>
       </div>
       <div id="ruler-zone-name">Epipelagic</div>
     </div>
+    <div id="ruler-line">
+      <div id="ruler-pip"></div>
+    </div>
+    <div id="ruler-labels"></div>
   </div>
 
-  <div class="article-page">
-    <main>
-      <article class="prose">
-        <header class="article-header">
-          <div class="station-badge">Marine Research Station</div>
-          <h1>{title}</h1>
-          {description && <p class="description">{description}</p>}
-          <div class="meta">
-            {date && (
-              <time datetime={date.toISOString()}>
-                {date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-              </time>
-            )}
-            {tags.length > 0 && (
-              <ul class="tags">
-                {tags.map((tag) => <li class="tag">#{tag}</li>)}
-              </ul>
-            )}
-          </div>
-        </header>
-        <slot />
-      </article>
-    </main>
-
-    <!-- Right sidebar: progress + TOC only -->
-    <aside id="toc-sidebar">
-      <div class="sidebar-card">
-        <div class="progress-section">
-          <div class="progress-header">
-            <span class="sidebar-label">Progress</span>
-            <span id="progress-pct">0%</span>
-          </div>
-          <div class="progress-track">
-            <div id="progress-fill"></div>
-          </div>
+  <div class="lab-wrapper">
+    {hasNav && (
+      <aside id="nav-sidebar">
+        <div class="nav-sticky">
+          <NavTree articles={navArticles!} base={navBase!} currentId={currentId} accent="var(--color-sky)" label={navLabel} />
         </div>
+      </aside>
+    )}
+    <div class="lab-content">
+      <div class="article-page">
+        <main>
+          <article class="prose">
+            <header class="article-header">
+              <div class="station-badge">Marine Research Station</div>
+              <h1>{title}</h1>
+              {description && <p class="description">{description}</p>}
+              <div class="meta">
+                {date && (
+                  <time datetime={date.toISOString()}>
+                    {date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                  </time>
+                )}
+                {tags.length > 0 && (
+                  <ul class="tags">
+                    {tags.map((tag) => <li class="tag">#{tag}</li>)}
+                  </ul>
+                )}
+              </div>
+            </header>
+            <slot />
+          </article>
+        </main>
 
-        <div class="toc-section">
-          <p class="sidebar-label">Contents</p>
-          <ul id="toc-list"></ul>
-        </div>
+        <!-- Right sidebar: progress + TOC only -->
+        <aside id="toc-sidebar">
+          <div class="sidebar-card">
+            <div class="progress-section">
+              <div class="progress-header">
+                <span class="sidebar-label">Progress</span>
+                <span id="progress-pct">0%</span>
+              </div>
+              <div class="progress-track">
+                <div id="progress-fill"></div>
+              </div>
+            </div>
+            <div class="toc-section">
+              <p class="sidebar-label">Contents</p>
+              <ul id="toc-list"></ul>
+            </div>
+          </div>
+        </aside>
       </div>
-    </aside>
+    </div>
   </div>
 </BaseLayout>
 
@@ -120,14 +137,14 @@ const base = import.meta.env.BASE_URL;
     { name: 'Abyssopelagic', minDepth: 4000 },
   ] as const;
 
-  // Build zone labels (LEFT) + tick marks on the line — inline styles required for JS-created elements
+  // Build zone labels (RIGHT column) + tick marks on the line
   zones.forEach((z) => {
     const pct = (z.minDepth / MAX_DEPTH) * 100;
 
     const label = document.createElement('div');
     label.style.cssText = `
       position: absolute;
-      right: 6px;
+      left: 6px;
       top: ${pct}%;
       transform: translateY(-50%);
       font-size: 0.55rem;
@@ -135,7 +152,7 @@ const base = import.meta.env.BASE_URL;
       text-transform: uppercase;
       color: #ffffff;
       white-space: nowrap;
-      text-align: right;
+      text-align: left;
     `;
     label.textContent = z.name;
     rulerLabels.appendChild(label);
@@ -144,7 +161,7 @@ const base = import.meta.env.BASE_URL;
     tick.style.cssText = `
       position: absolute;
       top: ${pct}%;
-      left: -4px;
+      right: -4px;
       width: 10px;
       height: 1px;
       background: rgba(255,255,255,0.55);
@@ -264,16 +281,45 @@ const base = import.meta.env.BASE_URL;
     #reading-bar { display: none; }
   }
 
-  /* ── Left depth ruler ─────────────────────────────── */
+  /* ── Outer flex wrapper ───────────────────────────── */
+  .lab-wrapper {
+    display: flex;
+    align-items: stretch;
+    min-height: calc(100vh - 52px);
+  }
+
+  /* ── Left nav sidebar ─────────────────────────────── */
+  #nav-sidebar { display: none; }
+
+  @media (min-width: 1060px) {
+    #nav-sidebar {
+      display: block;
+      width: 200px;
+      flex-shrink: 0;
+      align-self: stretch;
+      background: var(--bg-panel);
+    }
+  }
+
+  .nav-sticky {
+    position: sticky;
+    top: 52px;
+    max-height: calc(100vh - 52px);
+    overflow-y: auto;
+    padding: 1.25rem;
+  }
+
+  .lab-content { flex: 1; min-width: 0; }
+
+  /* ── Right depth ruler ────────────────────────────── */
   #depth-ruler {
     position: fixed;
-    left: 1rem;
+    right: 1rem;
     top: calc(52px + 3rem);
     bottom: 3rem;
     display: none;
     pointer-events: none;
     z-index: 20;
-    /* three-column flex: labels | line | readout */
     align-items: stretch;
   }
 
@@ -281,15 +327,19 @@ const base = import.meta.env.BASE_URL;
     #depth-ruler { display: flex; }
   }
 
-  /* LEFT column: zone names, right-aligned up to the line */
-  #ruler-labels {
-    width: 88px;
-    height: 100%;
-    position: relative;
-    flex-shrink: 0;
+  /* LEFT sub-column: readout (follows pip) */
+  #ruler-readout {
+    position: absolute;
+    right: calc(88px + 2px + 8px);
+    top: 0%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    text-align: right;
   }
 
-  /* CENTER column: the vertical line */
+  /* CENTER sub-column: vertical line */
   #ruler-line {
     width: 2px;
     flex-shrink: 0;
@@ -302,7 +352,7 @@ const base = import.meta.env.BASE_URL;
     position: relative;
   }
 
-  /* Moving pip: ring + center dot */
+  /* Moving pip */
   #ruler-pip {
     position: absolute;
     left: 50%;
@@ -327,15 +377,12 @@ const base = import.meta.env.BASE_URL;
     background: white;
   }
 
-  /* RIGHT column: current depth + zone name, follows pip */
-  #ruler-readout {
-    position: absolute;
-    left: calc(88px + 2px + 8px); /* labels width + line width + gap */
-    top: 0%;
-    transform: translateY(-50%);
-    display: flex;
-    flex-direction: column;
-    gap: 0.1rem;
+  /* RIGHT sub-column: zone labels */
+  #ruler-labels {
+    width: 88px;
+    height: 100%;
+    position: relative;
+    flex-shrink: 0;
   }
 
   .ruler-value { line-height: 1; }
@@ -386,7 +433,7 @@ const base = import.meta.env.BASE_URL;
     max-width: none;
   }
 
-  /* ── Sidebar ──────────────────────────────────────── */
+  /* ── TOC Sidebar ──────────────────────────────────────── */
   #toc-sidebar { display: none; }
 
   @media (min-width: 1060px) {

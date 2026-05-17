@@ -1,24 +1,31 @@
 ---
 import { getCollection, render } from 'astro:content';
-import ArticleLayout from '../../layouts/AerospaceLabLayout.astro';
+import AerospaceLabLayout from '../../layouts/AerospaceLabLayout.astro';
 
 export async function getStaticPaths() {
   const articles = await getCollection('aerospace-lab', ({ data }) => !data.draft);
   return articles.map((article) => ({
     params: { slug: article.id },
-    props: { article },
+    props: { article, allArticles: articles },
   }));
 }
 
-const { article } = Astro.props;
+const { article, allArticles } = Astro.props;
 const { Content } = await render(article);
+
+const base = import.meta.env.BASE_URL;
+const navBase = `${base}aerospace-lab`;
+const navArticles = allArticles.map((a) => ({ id: a.id, title: a.data.title }));
 ---
 
-<ArticleLayout
+<AerospaceLabLayout
   title={article.data.title}
   description={article.data.description}
   date={article.data.date}
   tags={article.data.tags}
+  navArticles={navArticles}
+  navBase={navBase}
+  currentId={article.id}
 >
   <Content />
-</ArticleLayout>
+</AerospaceLabLayout>
