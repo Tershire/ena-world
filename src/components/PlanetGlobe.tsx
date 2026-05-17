@@ -68,6 +68,67 @@ const OCEAN_FRAG = /* glsl */`
   }
 `;
 
+// ── Aurora shaders ───────────────────────────────────────
+const AURORA_VERT = /* glsl */`
+  varying vec3 vPos;
+  void main() {
+    vPos = normalize(position);
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const AURORA_FRAG = /* glsl */`
+  uniform float uTime;
+  uniform float uNight;
+  varying vec3 vPos;
+
+  void main() {
+    float lat = abs(vPos.y);
+    float lon  = atan(vPos.z, vPos.x);
+
+    // ── Layer 1: green / teal curtain ─────────────────
+    float mask1 = smoothstep(0.80, 0.86, lat) * (1.0 - smoothstep(0.92, 0.96, lat));
+
+    // Incommensurate frequencies → irregular, non-repeating column pattern
+    float c1 = sin(lon * 5.73  + uTime * 0.10)        * 0.50
+             + sin(lon * 11.37 - uTime * 0.07 + 1.80) * 0.30
+             + sin(lon * 17.92 + uTime * 0.13 + 3.40) * 0.12
+             + sin(lon *  3.14 - uTime * 0.05 + 5.10) * 0.08;
+    c1 = clamp(c1 * 0.5 + 0.5, 0.0, 1.0);
+
+    // Vertical ripple — curtain hanging / swaying texture
+    float r1 = sin(lon * 19.73 + lat * 55.0 + uTime * 1.9)
+             * sin(lon *  8.41 + lat * 30.0 + uTime * 1.4) * 0.5 + 0.5;
+
+    float pulse1 = sin(uTime * 0.62 + lon * 2.37) * 0.22 + 0.78;
+
+    vec3  green = vec3(0.05, 0.88, 0.42);
+    vec3  teal  = vec3(0.00, 0.52, 0.82);
+    vec3  col1  = mix(green, teal, c1 * 0.55);
+    float a1    = mask1 * (0.18 + 0.28 * c1) * (0.55 + 0.45 * r1) * pulse1 * uNight;
+
+    // ── Layer 2: violet curtain (overlapping, higher latitude) ──
+    float mask2 = smoothstep(0.83, 0.88, lat) * (1.0 - smoothstep(0.91, 0.94, lat));
+
+    float c2 = sin(lon * 7.83  - uTime * 0.08 + 2.10) * 0.45
+             + sin(lon * 13.61 + uTime * 0.11 + 0.70) * 0.30
+             + sin(lon *  4.27 - uTime * 0.06 + 4.20) * 0.25;
+    c2 = clamp(c2 * 0.5 + 0.5, 0.0, 1.0);
+
+    float r2     = sin(lon * 23.47 + lat * 60.0 + uTime * 2.3) * 0.5 + 0.5;
+    float pulse2 = sin(uTime * 0.48 + lon * 3.14 + 1.20) * 0.28 + 0.72;
+
+    vec3  violet = vec3(0.60, 0.10, 0.82);
+    vec3  col2   = mix(violet, teal, c2 * 0.25);
+    float a2     = mask2 * (0.12 + 0.20 * c2) * (0.50 + 0.50 * r2) * pulse2 * uNight;
+
+    // Premultiplied additive output (mesh uses AdditiveBlending)
+    vec3 additive = col1 * a1 + col2 * a2;
+    if (dot(additive, vec3(1.0)) < 0.005) discard;
+    gl_FragColor = vec4(additive, 1.0);
+  }
+`;
+
 // ── Terrain helpers ──────────────────────────────────────
 function stationUnitVec(s: Station): THREE.Vector3 {
   return new THREE.Vector3(
@@ -804,6 +865,22 @@ export default function PlanetGlobe({ base }: { base: string }) {
     ocean.renderOrder = 2;
     scene.add(ocean);
 
+    // ── Aurora ────────────────────────────────────────
+    const auroraUniforms = { uTime: { value: 0 }, uNight: { value: 0 } };
+    const aurora = new THREE.Mesh(
+      new THREE.SphereGeometry(1.05, 64, 32),
+      new THREE.ShaderMaterial({
+        uniforms:       auroraUniforms,
+        vertexShader:   AURORA_VERT,
+        fragmentShader: AURORA_FRAG,
+        transparent:    true,
+        depthWrite:     false,
+        blending:       THREE.AdditiveBlending,
+      }),
+    );
+    aurora.renderOrder = 3;
+    scene.add(aurora);
+
     // ── Trees & coral ─────────────────────────────────
     const tempTrees = buildTemperateTrees(tempTreePos);
     const palmTrees = buildPalmTrees(palmTreePos);
@@ -1060,12 +1137,14 @@ export default function PlanetGlobe({ base }: { base: string }) {
       const t = (performance.now() - t0) / 1000;
       const dt = Math.min(t - prevT, 0.05);
       prevT = t;
-      oceanUniforms.uTime.value = t;
-      starUniforms.uTime.value  = t;
+      oceanUniforms.uTime.value  = t;
+      auroraUniforms.uTime.value = t;
+      starUniforms.uTime.value   = t;
 
       // ── Dark mode blend ──────────────────────────────
       darkBlend += (darkTarget - darkBlend) * 0.04; // ~0.5 s transition at 60 fps
-      oceanUniforms.uNight.value = darkBlend;
+      oceanUniforms.uNight.value  = darkBlend;
+      auroraUniforms.uNight.value = darkBlend;
 
       // Lights
       sun.color.copy(daySunCol).lerp(nightSunCol, darkBlend);
@@ -1093,6 +1172,7 @@ export default function PlanetGlobe({ base }: { base: string }) {
       planetQuat.setFromEuler(euler);
       terrainMesh.rotation.copy(euler);
       ocean.rotation.copy(euler);
+      aurora.rotation.copy(euler);
       tempTrees.rotation.copy(euler);
       palmTrees.rotation.copy(euler);
       stationGroups.forEach((g) => { g.rotation.copy(euler); });
