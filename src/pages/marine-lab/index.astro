@@ -9,7 +9,7 @@ const raw = (await getCollection('marine-lab'))
   .filter((a) => !a.data.draft)
   .sort((a, b) => (b.data.date?.valueOf() ?? 0) - (a.data.date?.valueOf() ?? 0));
 
-const base = import.meta.env.BASE_URL;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const navBase = `${base}/marine-lab`;
 const navArticles = raw.map((a) => ({ id: a.id, title: a.data.title }));
 

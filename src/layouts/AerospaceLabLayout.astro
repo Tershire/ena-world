@@ -14,7 +14,7 @@ interface Props {
 }
 
 const { title, description, date, tags = [], navArticles, navBase, navLabel = 'Aerospace Lab', currentId } = Astro.props;
-const base = import.meta.env.BASE_URL;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const hasNav = navArticles && navArticles.length > 0 && navBase;
 ---
 
