@@ -1,0 +1,99 @@
+@import "tailwindcss";
+
+/* ── Design tokens ─────────────────────────────────────── */
+:root {
+  /* Parchment / map palette */
+  --color-parchment:   #f5ead6;
+  --color-ink:         #2c1f0e;
+  --color-ink-faded:   #6b4f2a;
+  --color-sepia:       #c49a6c;
+  --color-rust:        #8b3a2a;
+  --color-moss:        #4a6741;
+  --color-sky:         #3a6b8b;
+
+  /* Marine lab depth palette */
+  --pelagic-sunlight:  #b0d4e8;  /* 0–200 m  epipelagic   */
+  --pelagic-twilight:  #1a5276;  /* 200–1000 m mesopelagic */
+  --pelagic-midnight:  #0d2137;  /* 1000–4000 m bathypelagic */
+  --pelagic-abyss:     #060e1a;  /* 4000 m+  abyssopelagic */
+
+  /* Aerospace lab sky palette */
+  --aero-troposphere:  #87ceeb;
+  --aero-stratosphere: #1a237e;
+  --aero-exosphere:    #080820;
+
+  --font-display: 'Palatino Linotype', 'Book Antiqua', Palatino, Georgia, serif;
+  --font-body:    Georgia, 'Times New Roman', serif;
+  --font-mono:    'Fira Code', 'Cascadia Code', 'Courier New', monospace;
+}
+
+/* ── Base ──────────────────────────────────────────────── */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-parchment);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  line-height: 1.75;
+}
+
+/* ── Typography ────────────────────────────────────────── */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  color: var(--color-ink);
+  font-weight: 600;
+}
+
+a {
+  color: var(--color-rust);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+a:hover {
+  color: var(--color-sepia);
+}
+
+/* ── Wikilink ──────────────────────────────────────────── */
+a.internal {
+  color: var(--color-moss);
+}
+a.internal.new {
+  color: var(--color-sepia);
+  font-style: italic;
+}
+
+/* ── Prose ─────────────────────────────────────────────── */
+.prose {
+  max-width: 72ch;
+}
+.prose code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  background: rgba(44, 31, 14, 0.08);
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+}
+.prose pre {
+  background: var(--color-ink);
+  color: var(--color-parchment);
+  padding: 1.25rem 1.5rem;
+  border-radius: 6px;
+  overflow-x: auto;
+}
+.prose pre code {
+  background: transparent;
+  padding: 0;
+}
+.prose blockquote {
+  border-left: 3px solid var(--color-sepia);
+  padding-left: 1rem;
+  color: var(--color-ink-faded);
+  font-style: italic;
+}
+
+/* ── Marine lab: pelagic scroll ────────────────────────── */
+.pelagic-bg {
+  transition: background-color 0.4s ease;
+}

@@ -1,0 +1,200 @@
+---
+import BaseLayout from './BaseLayout.astro';
+
+interface Props {
+  title: string;
+  description?: string;
+  date?: Date;
+  tags?: string[];
+}
+
+const { title, description, date, tags = [] } = Astro.props;
+---
+
+<BaseLayout title={title} description={description}>
+  <!-- Altitude HUD: fixed right side indicator -->
+  <aside id="altitude-hud" aria-hidden="true">
+    <div class="zone-labels">
+      <span data-zone="exosphere">Exosphere</span>
+      <span data-zone="thermosphere">Thermosphere</span>
+      <span data-zone="mesosphere">Mesosphere</span>
+      <span data-zone="stratosphere">Stratosphere</span>
+      <span data-zone="troposphere">Troposphere</span>
+    </div>
+    <div class="altitude-track">
+      <div id="altitude-marker" class="altitude-marker"></div>
+    </div>
+  </aside>
+
+  <main id="aero-main" class="article-wrap">
+    <article class="prose">
+      <header class="article-header">
+        <div class="station-badge">Aerospace Research Station</div>
+        <h1>{title}</h1>
+        {description && <p class="description">{description}</p>}
+        <div class="meta">
+          {date && (
+            <time datetime={date.toISOString()}>
+              {date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+            </time>
+          )}
+          {tags.length > 0 && (
+            <ul class="tags">
+              {tags.map((tag) => <li class="tag">#{tag}</li>)}
+            </ul>
+          )}
+        </div>
+      </header>
+
+      <slot />
+    </article>
+  </main>
+</BaseLayout>
+
+<script>
+  // Altitude scroll: troposphere → stratosphere → mesosphere → thermosphere → exosphere
+  // Scroll down = ascending (progress 0→1 = ground→space)
+  const layers = [
+    { name: 'troposphere',   start: 0,    bg: '#87ceeb', text: '#1a2a3a' }, // 0–12 km
+    { name: 'stratosphere',  start: 0.20, bg: '#1a237e', text: '#e3f2fd' }, // 12–50 km
+    { name: 'mesosphere',    start: 0.45, bg: '#0d0d3b', text: '#b0c4de' }, // 50–80 km
+    { name: 'thermosphere',  start: 0.65, bg: '#050515', text: '#7faacc' }, // 80–700 km (aurora hint)
+    { name: 'exosphere',     start: 0.85, bg: '#000008', text: '#5588aa' }, // 700 km+
+  ] as const;
+
+  const main = document.getElementById('aero-main')!;
+  const marker = document.getElementById('altitude-marker')!;
+  const hudLabels = document.querySelectorAll<HTMLElement>('[data-zone]');
+
+  function onScroll() {
+    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+    // Ascending: top of page = ground, bottom = space
+    const progress = Math.min(window.scrollY / docHeight, 1);
+
+    let layer = layers[0];
+    for (const l of layers) {
+      if (progress >= l.start) layer = l;
+    }
+
+    main.style.backgroundColor = layer.bg;
+    main.style.color = layer.text;
+
+    // Marker travels bottom→top as we ascend
+    marker.style.bottom = `${progress * 100}%`;
+
+    hudLabels.forEach((el) => {
+      el.classList.toggle('active', el.dataset.zone === layer.name);
+    });
+  }
+
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+</script>
+
+<style>
+  #aero-main {
+    min-height: 100vh;
+    padding: 3rem 2rem;
+    max-width: 800px;
+    margin: 0 auto;
+    transition: background-color 0.6s ease, color 0.6s ease;
+  }
+
+  /* ── Altitude HUD (right side, flipped: bottom = ground) ── */
+  #altitude-hud {
+    position: fixed;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    gap: 0.5rem;
+    z-index: 50;
+    align-items: center;
+  }
+
+  .zone-labels {
+    display: flex;
+    flex-direction: column; /* top = space, bottom = ground */
+    justify-content: space-between;
+    height: 160px;
+    font-size: 0.6rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.3);
+    text-align: right;
+  }
+
+  .zone-labels span.active {
+    color: rgba(255,255,255,0.9);
+  }
+
+  .altitude-track {
+    width: 3px;
+    height: 160px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 999px;
+    position: relative;
+  }
+
+  .altitude-marker {
+    position: absolute;
+    left: -3px;
+    width: 9px;
+    height: 9px;
+    background: #90caf9;
+    border-radius: 50%;
+    bottom: 0;
+    transition: bottom 0.3s ease;
+  }
+
+  /* ── Article ──────────────────────────────────────── */
+  .station-badge {
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    opacity: 0.6;
+    margin-bottom: 0.75rem;
+  }
+
+  .article-header {
+    margin-bottom: 3rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid rgba(255,255,255,0.15);
+  }
+
+  .article-header h1 {
+    font-size: 2.25rem;
+    margin-bottom: 0.5rem;
+    color: inherit;
+  }
+
+  .description {
+    font-size: 1.1rem;
+    font-style: italic;
+    opacity: 0.7;
+    margin-bottom: 1rem;
+  }
+
+  .meta {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    font-size: 0.85rem;
+    opacity: 0.6;
+  }
+
+  .tags {
+    display: flex;
+    gap: 0.5rem;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .tag {
+    background: rgba(255,255,255,0.1);
+    padding: 0.15em 0.6em;
+    border-radius: 999px;
+    font-size: 0.8rem;
+  }
+</style>

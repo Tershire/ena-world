@@ -1,0 +1,231 @@
+---
+import BaseLayout from './BaseLayout.astro';
+
+interface Props {
+  title: string;
+  description?: string;
+  date?: Date;
+  tags?: string[];
+}
+
+const { title, description, date, tags = [] } = Astro.props;
+---
+
+<BaseLayout title={title} description={description}>
+  <!-- Depth HUD: fixed left side indicator -->
+  <aside id="depth-hud" aria-hidden="true">
+    <div class="depth-track">
+      <div id="depth-marker" class="depth-marker"></div>
+    </div>
+    <div class="zone-labels">
+      <span data-zone="epipelagic">Epipelagic</span>
+      <span data-zone="mesopelagic">Mesopelagic</span>
+      <span data-zone="bathypelagic">Bathypelagic</span>
+      <span data-zone="abyssopelagic">Abyssopelagic</span>
+    </div>
+  </aside>
+
+  <main id="pelagic-main" class="article-wrap pelagic-bg">
+    <!-- Particles: bioluminescent dots injected by JS -->
+    <canvas id="biolum-canvas" aria-hidden="true"></canvas>
+
+    <article class="prose">
+      <header class="article-header">
+        <div class="station-badge">Marine Research Station</div>
+        <h1>{title}</h1>
+        {description && <p class="description">{description}</p>}
+        <div class="meta">
+          {date && (
+            <time datetime={date.toISOString()}>
+              {date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+            </time>
+          )}
+          {tags.length > 0 && (
+            <ul class="tags">
+              {tags.map((tag) => <li class="tag">#{tag}</li>)}
+            </ul>
+          )}
+        </div>
+      </header>
+
+      <slot />
+    </article>
+  </main>
+</BaseLayout>
+
+<script>
+  // Pelagic zone scroll effect
+  const zones = [
+    { name: 'epipelagic',    start: 0,    bg: '#b0d4e8', text: '#2c1f0e' },
+    { name: 'mesopelagic',   start: 0.25, bg: '#1a5276', text: '#d6eaf8' },
+    { name: 'bathypelagic',  start: 0.55, bg: '#0d2137', text: '#aed6f1' },
+    { name: 'abyssopelagic', start: 0.80, bg: '#060e1a', text: '#7fb3d3' },
+  ] as const;
+
+  const main = document.getElementById('pelagic-main')!;
+  const marker = document.getElementById('depth-marker')!;
+  const hudLabels = document.querySelectorAll<HTMLElement>('[data-zone]');
+
+  function lerp(a: string, b: string, t: number): string {
+    // Simple hex lerp via element style — use CSS custom property approach
+    return t < 0.5 ? a : b;
+  }
+
+  function getZone(progress: number) {
+    let current = zones[0];
+    for (const z of zones) {
+      if (progress >= z.start) current = z;
+    }
+    return current;
+  }
+
+  function onScroll() {
+    const scrollTop = window.scrollY;
+    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+    const progress = Math.min(scrollTop / docHeight, 1);
+
+    const zone = getZone(progress);
+
+    main.style.backgroundColor = zone.bg;
+    main.style.color = zone.text;
+
+    // Move depth marker
+    marker.style.top = `${progress * 100}%`;
+
+    // Highlight active zone label
+    hudLabels.forEach((el) => {
+      el.classList.toggle('active', el.dataset.zone === zone.name);
+    });
+  }
+
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+</script>
+
+<style>
+  /* ── Pelagic main ─────────────────────────────────── */
+  #pelagic-main {
+    position: relative;
+    min-height: 100vh;
+    padding: 3rem 2rem;
+    transition: background-color 0.6s ease, color 0.6s ease;
+  }
+
+  .article-wrap {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  /* ── Bioluminescence canvas ───────────────────────── */
+  #biolum-canvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0;
+    transition: opacity 1s ease;
+  }
+
+  /* ── Depth HUD ────────────────────────────────────── */
+  #depth-hud {
+    position: fixed;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    gap: 0.5rem;
+    z-index: 50;
+  }
+
+  .depth-track {
+    width: 3px;
+    height: 160px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 999px;
+    position: relative;
+  }
+
+  .depth-marker {
+    position: absolute;
+    left: -3px;
+    width: 9px;
+    height: 9px;
+    background: #7fb3d3;
+    border-radius: 50%;
+    top: 0;
+    transition: top 0.3s ease;
+  }
+
+  .zone-labels {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 160px;
+    font-size: 0.6rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.3);
+  }
+
+  .zone-labels span.active {
+    color: rgba(255,255,255,0.9);
+  }
+
+  /* ── Article header ───────────────────────────────── */
+  .station-badge {
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    opacity: 0.6;
+    margin-bottom: 0.75rem;
+  }
+
+  .article-header {
+    margin-bottom: 3rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid rgba(255,255,255,0.15);
+  }
+
+  .article-header h1 {
+    font-size: 2.25rem;
+    margin-bottom: 0.5rem;
+    color: inherit;
+  }
+
+  .description {
+    font-size: 1.1rem;
+    font-style: italic;
+    opacity: 0.7;
+    margin-bottom: 1rem;
+  }
+
+  .meta {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    font-size: 0.85rem;
+    opacity: 0.6;
+  }
+
+  .tags {
+    display: flex;
+    gap: 0.5rem;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .tag {
+    background: rgba(255,255,255,0.1);
+    padding: 0.15em 0.6em;
+    border-radius: 999px;
+    font-size: 0.8rem;
+  }
+
+  .prose {
+    position: relative;
+    z-index: 1;
+  }
+</style>

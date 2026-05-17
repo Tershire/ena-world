@@ -1,0 +1,129 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const articles = (await getCollection('marine-lab'))
+  .filter((a) => !a.data.draft)
+  .sort((a, b) => (b.data.date?.valueOf() ?? 0) - (a.data.date?.valueOf() ?? 0));
+
+const base = import.meta.env.BASE_URL;
+---
+
+<BaseLayout title="Marine Lab">
+  <main class="index-wrap">
+    <header class="station-header">
+      <p class="station-label">Marine Research Station</p>
+      <h1>Marine Lab</h1>
+      <p class="station-desc">Underwater navigation, acoustic sensing, and oceanic SLAM.</p>
+    </header>
+
+    <ul class="article-list">
+      {articles.map((article) => (
+        <li>
+          <a href={`${base}/marine-lab/${article.id}`} class="article-card">
+            <span class="card-title">{article.data.title}</span>
+            {article.data.description && (
+              <span class="card-desc">{article.data.description}</span>
+            )}
+            {article.data.date && (
+              <time class="card-date" datetime={article.data.date.toISOString()}>
+                {article.data.date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+              </time>
+            )}
+          </a>
+        </li>
+      ))}
+      {articles.length === 0 && (
+        <li class="empty">No articles yet. The depths await.</li>
+      )}
+    </ul>
+  </main>
+</BaseLayout>
+
+<style>
+  .index-wrap {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 4rem 2rem;
+  }
+
+  .station-header {
+    margin-bottom: 3rem;
+    border-bottom: 1px solid var(--color-sky);
+    padding-bottom: 2rem;
+  }
+
+  .station-label {
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--color-sky);
+    margin-bottom: 0.5rem;
+  }
+
+  .station-header h1 {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .station-desc {
+    color: var(--color-ink-faded);
+    font-style: italic;
+  }
+
+  .article-list {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .article-card {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    gap: 0.25rem 1rem;
+    padding: 1.25rem 1.5rem;
+    background: rgba(58, 107, 139, 0.08);
+    border: 1px solid rgba(58, 107, 139, 0.3);
+    border-radius: 6px;
+    text-decoration: none;
+    transition: border-color 0.2s, background 0.2s;
+  }
+
+  .article-card:hover {
+    border-color: var(--color-sky);
+    background: rgba(58, 107, 139, 0.15);
+  }
+
+  .card-title {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    color: var(--color-ink);
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .card-desc {
+    font-size: 0.875rem;
+    color: var(--color-ink-faded);
+    font-style: italic;
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .card-date {
+    font-size: 0.75rem;
+    color: var(--color-ink-faded);
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+  }
+
+  .empty {
+    color: var(--color-ink-faded);
+    font-style: italic;
+    padding: 2rem 0;
+  }
+</style>
