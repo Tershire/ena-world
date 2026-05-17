@@ -661,25 +661,64 @@ function buildParrot(): { group: THREE.Group; lWing: THREE.Mesh; rWing: THREE.Me
   return { group: g, lWing, rWing };
 }
 
+function makeFinPrism(
+  p0: [number,number,number], p1: [number,number,number], p2: [number,number,number],
+  thickAxis: [number,number,number],
+): THREE.BufferGeometry {
+  const [dx, dy, dz] = thickAxis;
+  const pos = new Float32Array([
+    p0[0]+dx, p0[1]+dy, p0[2]+dz,  p1[0]+dx, p1[1]+dy, p1[2]+dz,  p2[0]+dx, p2[1]+dy, p2[2]+dz,
+    p0[0]-dx, p0[1]-dy, p0[2]-dz,  p1[0]-dx, p1[1]-dy, p1[2]-dz,  p2[0]-dx, p2[1]-dy, p2[2]-dz,
+  ]);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setIndex([0,1,2, 3,5,4, 0,3,4, 0,4,1, 1,4,5, 1,5,2, 2,5,3, 2,3,0]);
+  geo.computeVertexNormals();
+  return geo;
+}
+
 function buildDolphin(): { group: THREE.Group; tail: THREE.Group } {
   const g   = new THREE.Group();
   const mat = new THREE.MeshLambertMaterial({ color: 0x5a8aaa });
 
+  // Body — capsule length along +Z (nose) / -Z (tail)
   const bodyGeo = new THREE.CapsuleGeometry(0.008, 0.036, 4, 8);
   bodyGeo.rotateX(Math.PI / 2);
   g.add(new THREE.Mesh(bodyGeo, mat));
 
-  const dorsalGeo = new THREE.BoxGeometry(0.003, 0.009, 0.008);
-  dorsalGeo.translate(0, 0.008, -0.002);
-  g.add(new THREE.Mesh(dorsalGeo, mat));
+  // Rostrum (beak/snout) — short tapered box at nose tip
+  const rostrumGeo = new THREE.BoxGeometry(0.005, 0.004, 0.008);
+  rostrumGeo.translate(0, 0.001, 0.030);
+  g.add(new THREE.Mesh(rostrumGeo, mat));
 
-  // Tail pivot group — rotated to flap flukes up/down
+  // Dorsal fin — triangular blade (YZ plane, thin in X)
+  g.add(new THREE.Mesh(makeFinPrism(
+    [0, 0.008,  0.004],   // base front
+    [0, 0.008, -0.008],   // base rear
+    [0, 0.018, -0.001],   // swept tip
+    [0.0015, 0, 0],
+  ), mat));
+
+  // Pectoral fins — triangular flippers (XZ plane, thin in Y)
+  [-1, 1].forEach((s) => {
+    g.add(new THREE.Mesh(makeFinPrism(
+      [s*0.008, -0.001,  0.011],  // base front
+      [s*0.008, -0.001,  0.002],  // base rear
+      [s*0.019, -0.003,  0.005],  // swept tip
+      [0, 0.001, 0],
+    ), mat));
+  });
+
+  // Tail pivot group — tapered flukes flap up/down
   const tail = new THREE.Group();
   tail.position.set(0, 0, -0.020);
   [-1, 1].forEach((s) => {
-    const fg = new THREE.BoxGeometry(0.014, 0.002, 0.008);
-    fg.translate(s * 0.007, 0, -0.004);
-    tail.add(new THREE.Mesh(fg, mat));
+    tail.add(new THREE.Mesh(makeFinPrism(
+      [s*0.001,  0,  0.002],   // inner front
+      [s*0.002,  0, -0.010],   // inner rear
+      [s*0.020,  0, -0.007],   // wide swept tip
+      [0, 0.0014, 0],
+    ), mat));
   });
   g.add(tail);
 
@@ -1043,7 +1082,8 @@ export default function PlanetGlobe({ base }: { base: string }) {
     interface DolphinState {
       pos: THREE.Vector3; dir: THREE.Vector3;
       group: THREE.Group; tail: THREE.Group;
-      state: 'swim' | 'jump'; timer: number; jumpProgress: number; turnBias: number;
+      state: 'swim' | 'jump'; timer: number; jumpProgress: number;
+      wanderAngle: number; seed: number;
     }
     const dolphins: DolphinState[] = (
       [[1.57, -0.6], [1.50, 1.8]] as [number, number][]
@@ -1055,7 +1095,7 @@ export default function PlanetGlobe({ base }: { base: string }) {
       scene.add(group);
       return { pos, dir: initTangentDir(pos), group, tail,
                state: 'swim' as const, timer: 2 + i * 2.3, jumpProgress: 0,
-               turnBias: i * 2.1 }; // repurposed as turnPhase seed
+               wanderAngle: 0, seed: i * 2.7 };
     });
 
     // ── Atmosphere ────────────────────────────────────
@@ -1338,10 +1378,28 @@ export default function PlanetGlobe({ base }: { base: string }) {
       for (const d of dolphins) {
         d.timer -= dt;
         if (d.state === 'swim') {
-          const tb = Math.sin(t * 0.18 + d.turnBias) * 0.0013;
+          // Random wander: drift and decay toward zero
+          d.wanderAngle += (Math.random() - 0.5) * 0.003;
+          d.wanderAngle *= 0.97;
+          d.wanderAngle = Math.max(-0.018, Math.min(0.018, d.wanderAngle));
+
+          // Land avoidance: lookahead ~0.18 rad ahead
+          const ahead = d.pos.clone().addScaledVector(d.dir, 0.18).normalize();
+          const aheadH = getHeight(ahead.x, ahead.y, ahead.z);
+          const tb = d.wanderAngle + (aheadH > 0.004 ? 0.022 : 0);
+
           stepSphere(d.pos, d.dir, 0.10 * dt, tb);
-          d.tail.rotation.x = Math.sin(t * 6.5) * 0.50;
-          placeAnimal(d.group, d.pos, d.dir, 1.003, planetQuat);
+
+          // Tail flap + body pitch undulation
+          const swing = Math.sin(t * 6.5 + d.seed);
+          d.tail.rotation.x = swing * 0.45;
+          const bobR = 1.003 + Math.sin(t * 2.8 + d.seed) * 0.003;
+          placeAnimal(d.group, d.pos, d.dir, bobR, planetQuat);
+          d.group.quaternion.multiply(
+            new THREE.Quaternion().setFromAxisAngle(
+              new THREE.Vector3(1, 0, 0), Math.sin(t * 6.5 + d.seed + 0.5) * 0.06,
+            )
+          );
           if (d.timer <= 0) {
             d.state = 'jump';
             d.timer = 1.2;
@@ -1352,11 +1410,12 @@ export default function PlanetGlobe({ base }: { base: string }) {
           const arc = Math.sin(Math.min(d.jumpProgress, 1.0) * Math.PI);
           d.tail.rotation.x = Math.sin(t * 4.0) * 0.30;
           placeAnimal(d.group, d.pos, d.dir, 1.003 + arc * 0.065, planetQuat);
-          const pitchQ = new THREE.Quaternion().setFromAxisAngle(
-            new THREE.Vector3(1, 0, 0),
-            (d.jumpProgress < 0.5 ? -1 : 1) * arc * 0.7,
+          d.group.quaternion.multiply(
+            new THREE.Quaternion().setFromAxisAngle(
+              new THREE.Vector3(1, 0, 0),
+              (d.jumpProgress < 0.5 ? -1 : 1) * arc * 0.7,
+            )
           );
-          d.group.quaternion.multiply(pitchQ);
           if (d.timer <= 0) {
             d.state = 'swim';
             d.timer = 7.0 + Math.random() * 8.0;
