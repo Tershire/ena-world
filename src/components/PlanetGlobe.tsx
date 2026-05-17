@@ -93,36 +93,36 @@ const AURORA_FRAG = /* glsl */`
 
     // ── Layer 1: green / teal — mid-altitude floating band ──
     float bcut1 = 0.18
-      + sin(vAngle *  4.17 + uTime * 0.34) * 0.05
-      + sin(vAngle *  9.53 - uTime * 0.26) * 0.03;
+      + sin(vAngle *  4.0 + uTime * 0.34) * 0.05
+      + sin(vAngle * 10.0 - uTime * 0.26) * 0.03;
     float spike1 = 0.55
-      + sin(vAngle *  5.73 + uTime * 0.80) * 0.13
-      + sin(vAngle * 11.37 - uTime * 1.10) * 0.09
-      + sin(vAngle *  7.83 + uTime * 0.55) * 0.06
-      + sin(vAngle * 17.92 + uTime * 0.92) * 0.04;
-    spike1 = clamp(spike1, 0.28, 0.88);
+      + sin(vAngle *  6.0 + uTime * 0.80) * 0.10
+      + sin(vAngle * 11.0 - uTime * 1.10) * 0.07
+      + sin(vAngle *  8.0 + uTime * 0.55) * 0.04
+      + sin(vAngle * 18.0 + uTime * 0.92) * 0.03;
+    spike1 = clamp(spike1, 0.34, 0.80);
 
     float fade1   = smoothstep(bcut1, bcut1 + 0.07, vHeight)
                   * (1.0 - smoothstep(spike1 * 0.65, spike1, vHeight));
-    float bright1 = 0.55 + 0.45 * (sin(vAngle * 5.73 + uTime * 0.22) * 0.5 + 0.5);
+    float bright1 = 0.55 + 0.45 * (sin(vAngle * 6.0 + uTime * 0.22) * 0.5 + 0.5);
     vec3  col1    = mix(vec3(0.05, 0.88, 0.42), teal, smoothstep(0.0, 0.6, vHeight));
     float a1      = fade1 * bright1 * uNight * 0.45;
 
     // ── Layer 2: violet — separate lower floating band ──────
-    float bcut2 = 0.10
-      + sin(vAngle *  6.29 - uTime * 0.31 + 1.2) * 0.03
-      + sin(vAngle * 12.18 + uTime * 0.22 + 2.7) * 0.02;
-    float spike2 = 0.30
-      + sin(vAngle *  8.11 - uTime * 0.70 + 0.8) * 0.10
-      + sin(vAngle * 14.73 + uTime * 0.90 + 3.1) * 0.06
-      + sin(vAngle *  3.97 - uTime * 0.45 + 1.9) * 0.05
-      + sin(vAngle * 21.34 + uTime * 1.10 + 4.5) * 0.03;
-    spike2 = clamp(spike2, 0.14, 0.50);
+    float bcut2 = 0.14
+      + sin(vAngle *  6.0 - uTime * 0.31 + 1.2) * 0.03
+      + sin(vAngle * 12.0 + uTime * 0.22 + 2.7) * 0.02;
+    float spike2 = 0.36
+      + sin(vAngle *  8.0 - uTime * 0.70 + 0.8) * 0.07
+      + sin(vAngle * 15.0 + uTime * 0.90 + 3.1) * 0.04
+      + sin(vAngle *  4.0 - uTime * 0.45 + 1.9) * 0.04
+      + sin(vAngle * 21.0 + uTime * 1.10 + 4.5) * 0.02;
+    spike2 = clamp(spike2, 0.21, 0.52);
 
     float fade2   = smoothstep(bcut2, bcut2 + 0.06, vHeight)
                   * (1.0 - smoothstep(spike2 * 0.65, spike2, vHeight));
-    float bright2 = 0.50 + 0.50 * (sin(vAngle * 8.11 + uTime * 0.35 + 1.5) * 0.5 + 0.5);
-    vec3  col2    = mix(vec3(0.60, 0.10, 0.82), teal, smoothstep(0.2, 0.8, vHeight) * 0.30);
+    float bright2 = 0.50 + 0.50 * (sin(vAngle * 8.0 + uTime * 0.35 + 1.5) * 0.5 + 0.5);
+    vec3  col2    = mix(vec3(0.65, 0.05, 0.85), vec3(0.82, 0.18, 0.62), smoothstep(0.1, 0.8, vHeight));
     float a2      = fade2 * bright2 * uNight * 0.35;
 
     // Premultiplied additive output
