@@ -6,7 +6,7 @@ const articleSchema = z.object({
   description: z.string().optional(),
   date: z.coerce.date().optional(),
   tags: z.array(z.string()).default([]),
-  public: z.boolean().default(false),
+  public: z.coerce.boolean().default(false),
 });
 
 export const collections = {

@@ -59,7 +59,8 @@ echo "==> Sync complete."
 
 if [[ "$PUBLISH" == true ]]; then
   cd "$(dirname "$0")/.."
-  git add src/content public/attachments 2>/dev/null || true
+  git add src/content
+  [[ -d public/attachments ]] && git add public/attachments
   git commit -m "sync: obsidian vault $(date '+%Y-%m-%d %H:%M')" || echo "  [info] nothing to commit"
   git push
   echo "==> Published."

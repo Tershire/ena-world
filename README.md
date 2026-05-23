@@ -108,7 +108,7 @@ rclone config   # follow prompts → name the remote "google_drive", type "drive
 **3. Add the sync alias** to `~/.bashrc`:
 
 ```bash
-alias s='rclone bisync ~/Documents/obsidian_vault google_drive:obsidian_vault --exclude-from ~/.config/rclone/obsidian-ignore.txt --check-access --verbose'
+alias s='rclone bisync ~/Documents/obsidian_vault google_drive:obsidian_vault --exclude-from ~/.config/rclone/obsidian-ignore.txt --verbose'
 ```
 
 Then reload: `source ~/.bashrc`
@@ -138,6 +138,47 @@ git add src/content public/attachments
 git commit -m "sync: obsidian vault"
 git push                   # 4. triggers GitHub Pages deploy
 ```
+
+---
+
+## Publish dashboard (Ubuntu GUI)
+
+`scripts/dashboard.py` is a PyQt6 GUI with four buttons that cover the full publish pipeline.
+
+```
+[ sync local ↔ drive ]  [ sync local → ENA ]  [ check npm build ]  [ publish git push ]
+```
+
+If **sync local ↔ drive** fails, a red **⚠ resync (recover)** button appears automatically. Clicking it runs `rclone bisync --resync` to reinitialize the sync state. The button disappears once bisync succeeds.
+
+### One-time setup
+
+**1. Create the virtual environment:**
+
+```bash
+mkdir -p ~/Documents/virtual_environments
+/opt/python/3.12.13/bin/python3 -m venv ~/Documents/virtual_environments/general-py312
+```
+
+**2. Install PyQt6:**
+
+```bash
+~/Documents/virtual_environments/general-py312/bin/pip install PyQt6
+```
+
+**3. (If needed) Install the Qt xcb platform library:**
+
+```bash
+sudo apt install libxcb-cursor0
+```
+
+### Launching
+
+```bash
+./scripts/dashboard.sh
+```
+
+`dashboard.sh` activates the virtual environment automatically before running `dashboard.py`.
 
 ---
 
@@ -201,6 +242,8 @@ src/
 
 scripts/
   sync-vault.sh               Obsidian → Astro sync
+  dashboard.py                PyQt6 publish dashboard
+  dashboard.sh                Launcher (activates venv automatically)
 
 .github/workflows/
   deploy.yml                  GitHub Actions → GitHub Pages
