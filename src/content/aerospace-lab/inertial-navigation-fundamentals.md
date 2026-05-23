@@ -3,7 +3,7 @@ title: "Inertial Navigation System Fundamentals"
 description: "Core principles of INS: IMU modelling, mechanization equations, and error propagation in strapdown systems."
 date: 2025-12-01
 tags: ["INS", "IMU", "strapdown", "navigation"]
-draft: false
+public: true
 ---
 
 ## What is an INS?

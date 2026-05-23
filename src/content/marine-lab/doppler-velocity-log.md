@@ -3,6 +3,7 @@ title: "Doppler Velocity Log"
 description: "Acoustic Doppler sensing for underwater velocity estimation — dead reckoning's best friend."
 date: 2026-05-17
 tags: [acoustics, DVL, dead-reckoning, underwater]
+public: true
 ---
 
 ## What is a DVL?

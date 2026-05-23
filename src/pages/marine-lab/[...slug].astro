@@ -3,7 +3,7 @@ import { getCollection, render } from 'astro:content';
 import MarineLabLayout from '../../layouts/MarineLabLayout.astro';
 
 export async function getStaticPaths() {
-  const articles = await getCollection('marine-lab', ({ data }) => !data.draft);
+  const articles = await getCollection('marine-lab', ({ data }) => data.public);
   return articles.map((article) => ({
     params: { slug: article.id },
     props: { article, allArticles: articles },

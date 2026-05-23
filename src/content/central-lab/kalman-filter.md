@@ -3,6 +3,7 @@ title: "Kalman Filter"
 description: "Optimal linear estimation under Gaussian noise — the workhorse of navigation."
 date: 2026-05-17
 tags: [estimation, filtering, linear-systems]
+public: true
 ---
 
 ## Overview

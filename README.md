@@ -43,7 +43,7 @@ Articles are written in **Obsidian** (`~/Documents/obsidian_vault`) and synced i
 
 ### Frontmatter
 
-Every article needs at minimum a `title`:
+Every article needs at minimum a `title`. Only articles with `public: true` are included in the build — articles without it are invisible on the site.
 
 ```yaml
 ---
@@ -51,7 +51,7 @@ title: "Kalman Filter"
 description: "Optional one-liner shown in listings."
 date: 2026-05-17
 tags: [estimation, filtering]
-draft: false          # true = excluded from build
+public: true          # omit or set false to keep the note private
 ---
 ```
 
@@ -61,6 +61,82 @@ draft: false          # true = excluded from build
 
 ```markdown
 See also [[Extended Kalman Filter]] and [[Particle Filter]].
+```
+
+---
+
+## Obsidian ↔ Google Drive sync (Ubuntu setup)
+
+The vault is kept in sync with Google Drive via **rclone bisync**. This lets notes written on any device (phone, tablet, other computer) flow into the Ubuntu machine where the site is built.
+
+### Full sync pipeline
+
+```
+Obsidian (any device)
+  ↕  Google Drive (cloud)
+  ↕  rclone bisync
+~/Documents/obsidian_vault/   (Ubuntu)
+  ↓  sync-vault.sh
+src/content/                  (Astro)
+  ↓  git push
+GitHub Pages
+```
+
+### One-time setup
+
+**1. Install rclone and configure a Google Drive remote named `google_drive`:**
+
+```bash
+sudo apt install rclone
+rclone config   # follow prompts → name the remote "google_drive", type "drive"
+```
+
+**2. Create the ignore file** at `~/.config/rclone/obsidian-ignore.txt`:
+
+```
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+
+.obsidian/cache/**
+.obsidian/thumbnails/**
+.obsidian/plugins/*/data.json
+
+.trash/**
+.DS_Store
+```
+
+**3. Add the sync alias** to `~/.bashrc`:
+
+```bash
+alias s='rclone bisync ~/Documents/obsidian_vault google_drive:obsidian_vault --exclude-from ~/.config/rclone/obsidian-ignore.txt --check-access --verbose'
+```
+
+Then reload: `source ~/.bashrc`
+
+**4. Run the first bisync with `--resync`** (one time only, to initialize state):
+
+```bash
+rclone bisync ~/Documents/obsidian_vault google_drive:obsidian_vault \
+  --exclude-from ~/.config/rclone/obsidian-ignore.txt \
+  --resync --verbose
+```
+
+### Daily usage
+
+```bash
+s                                  # 1. pull/push changes with Google Drive
+./scripts/sync-vault.sh --publish  # 2. sync vault → Astro + commit + push
+```
+
+Or step by step if you want to review before publishing:
+
+```bash
+s                          # 1. sync with Google Drive
+./scripts/sync-vault.sh    # 2. sync vault → src/content/ (no publish)
+npm run build              # 3. preview build locally (optional)
+git add src/content public/attachments
+git commit -m "sync: obsidian vault"
+git push                   # 4. triggers GitHub Pages deploy
 ```
 
 ---

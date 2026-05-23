@@ -6,7 +6,7 @@ import NavTree from '../../components/NavTree.astro';
 import type { ArticleItem } from '../../components/ArticleGrid';
 
 const raw = (await getCollection('marine-lab'))
-  .filter((a) => !a.data.draft)
+  .filter((a) => a.data.public)
   .sort((a, b) => (b.data.date?.valueOf() ?? 0) - (a.data.date?.valueOf() ?? 0));
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
