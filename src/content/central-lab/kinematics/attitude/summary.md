@@ -11,8 +11,8 @@ public: true
 
 | 구분      | 설명[@sommerWhyHowAvoid2018] | 비고  |
 | ------- | -------------------------- | --- |
-| active  |                            |     |
-| passive |                            |     |
+| active  | d                          | d   |
+| passive | d                          | d   |
 
 ## ...
 
@@ -23,8 +23,8 @@ ${}_{b}\mathbf{v} = C_{ba} \; {}_{a}\mathbf{v} = R^T_{b/a} \; {}_{a}\mathbf{v}$
 
 | 약자   | 풀이                    | 기호  | 비고  |
 | ---- | --------------------- | --- | --- |
-| PWTB | passive world-to-body | $$  |     |
-| PBTW | passive body-to-world |     |     |
+| PWTB | passive world-to-body | d   | d   |
+| PBTW | passive body-to-world | d   | d   |
 
 
 

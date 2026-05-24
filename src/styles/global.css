@@ -124,8 +124,21 @@ a.internal.new {
   background: rgba(196, 154, 108, 0.12);
   font-weight: 600;
 }
-.prose tr:nth-child(even) td {
-  background: rgba(196, 154, 108, 0.05);
+
+/* ── Citations ─────────────────────────────────────────── */
+.cite {
+  font-size: 0.8em;
+  color: var(--color-sky);
+  font-weight: 600;
+}
+.references {
+  font-size: 0.875em;
+  line-height: 1.6;
+}
+.references p {
+  margin: 0.5rem 0;
+  padding-left: 2.5em;
+  text-indent: -2.5em;
 }
 
 /* ── Marine lab: pelagic scroll ────────────────────────── */
