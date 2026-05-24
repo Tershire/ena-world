@@ -180,6 +180,29 @@ sudo apt install libxcb-cursor0
 
 `dashboard.sh` activates the virtual environment automatically before running `dashboard.py`.
 
+### App menu shortcut (one-time)
+
+To add ENA World to the Ubuntu application menu (and pin it to the dock):
+
+```bash
+cat > ~/.local/share/applications/ena-world.desktop << 'EOF'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=ENA World
+Comment=Vault sync and publish dashboard
+Exec=/home/tershire/Documents/ena-world/scripts/dashboard.sh
+Icon=internet-web-browser
+Terminal=false
+Categories=Utility;
+StartupNotify=true
+EOF
+
+update-desktop-database ~/.local/share/applications/
+```
+
+Search "ENA World" in the app menu, then right-click → **Add to Favorites** to pin to the dock. The launcher always runs the latest `dashboard.py` — no need to redo this when the code changes.
+
 ---
 
 ## Publishing workflow
