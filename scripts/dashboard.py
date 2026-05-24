@@ -26,7 +26,7 @@ BISYNC_CMD = [
 STEPS = [
     ("sync\nlocal ↔ drive", BISYNC_CMD),
     ("sync\nlocal → ENA",   [f"{PROJECT}/scripts/sync-vault.sh"]),
-    ("check\nnpm build",    ["npm", "run", "build"]),
+    ("check\nnpm build",    ["bash", "-c", "source ~/.nvm/nvm.sh && npm run build"]),
     ("publish\ngit push",   [
         "bash", "-c",
         f'cd "{PROJECT}" && '
