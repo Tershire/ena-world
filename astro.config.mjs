@@ -5,6 +5,8 @@ import tailwindcss from '@tailwindcss/vite';
 import remarkWikiLink from 'remark-wiki-link';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import rehypeCitation from 'rehype-citation';
+import { fileURLToPath } from 'url';
 
 // https://astro.build/docs/guides/deploy/github/
 export default defineConfig({
@@ -28,6 +30,9 @@ export default defineConfig({
         },
       ],
     ],
-    rehypePlugins: [rehypeKatex],
+    rehypePlugins: [
+      [rehypeCitation, { bibliography: fileURLToPath(new URL('./references.bib', import.meta.url)) }],
+      rehypeKatex,
+    ],
   },
 });

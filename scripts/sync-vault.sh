@@ -48,6 +48,12 @@ sync_station "central-lab"
 sync_station "marine-lab"
 sync_station "aerospace-lab"
 
+# Sync references.bib (Better BibTeX auto-export from Zotero)
+if [[ -f "${VAULT}/references.bib" ]]; then
+  cp "${VAULT}/references.bib" "$(dirname "$0")/../references.bib"
+  echo "  [ok]   references.bib"
+fi
+
 # Sync attachments (images, PDFs, videos referenced in articles)
 if [[ -d "${VAULT}/attachments" ]]; then
   mkdir -p "${PUBLIC}/attachments"

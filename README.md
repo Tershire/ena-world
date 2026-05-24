@@ -63,6 +63,42 @@ public: true          # omit or set false to keep the note private
 See also [[Extended Kalman Filter]] and [[Particle Filter]].
 ```
 
+### Citations
+
+Citations use pandoc-style `[@key]` syntax. The site renders them automatically via `rehype-citation` using `references.bib` at the project root.
+
+**In a note:**
+
+```markdown
+DVL은 도플러 효과를 이용한다 [@paull2014].
+여러 문헌을 동시에 인용할 수 있다 [@thrun2005; @paull2014].
+@thrun2005 는 확률적 로보틱스의 기초를 다뤘다.
+```
+
+빌드 시 문서 하단에 References 섹션이 자동으로 생성된다.
+
+**Citation key 찾기:**
+
+Obsidian에서 `Ctrl+Shift+M` → 제목/저자로 검색 → 선택하면 `[@key]` 자동 삽입.
+
+#### One-time setup
+
+**1. Zotero — Better BibTeX 설치 및 자동 export:**
+
+- [Better BibTeX](https://retorque.re/zotero-better-bibtex/installation/) `.xpi` 설치 (Zotero → Tools → Add-ons)
+- File → Export Library → Format: **Better BibTeX** → ☑ **Keep updated** → 저장 경로: `~/Documents/obsidian_vault/references.bib`
+- Export notes / Export files / Use journal abbreviation: 모두 해제
+
+**2. Obsidian — Citations 플러그인 (by hans) 설치:**
+
+- Settings → Community plugins → Browse → "Citations" (by hans) → Install → Enable
+- 플러그인 설정:
+  - Citation database format: **BibLaTeX**
+  - Citation database path: `~/Documents/obsidian_vault/references.bib`
+- Settings → Hotkeys → "Citations: Insert Markdown citation" → `Ctrl+Shift+M` 지정
+
+`references.bib`는 sync-vault.sh 실행 시 자동으로 프로젝트 루트에 복사된다.
+
 ---
 
 ## Obsidian ↔ Google Drive sync (Ubuntu setup)
@@ -264,9 +300,11 @@ src/
     global.css                Design tokens + base styles
 
 scripts/
-  sync-vault.sh               Obsidian → Astro sync
+  sync-vault.sh               Obsidian → Astro sync (also copies references.bib)
   dashboard.py                PyQt6 publish dashboard
   dashboard.sh                Launcher (activates venv automatically)
+
+references.bib                BibTeX bibliography (auto-copied from vault on sync)
 
 .github/workflows/
   deploy.yml                  GitHub Actions → GitHub Pages

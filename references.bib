@@ -1,0 +1,482 @@
+@article{agostinhoPracticalSurveyVisual2022,
+  title = {A {{Practical Survey}} on {{Visual Odometry}} for {{Autonomous Driving}} in {{Challenging Scenarios}} and {{Conditions}}},
+  author = {Agostinho, Lucas R. and Ricardo, Nuno M. and Pereira, Maria I. and Hiolle, Antoine and Pinto, Andry M.},
+  year = 2022,
+  journal = {IEEE Access},
+  volume = {10},
+  pages = {72182--72205},
+  issn = {2169-3536},
+  doi = {10.1109/ACCESS.2022.3188990},
+  urldate = {2025-11-27},
+  abstract = {The expansion of autonomous driving operations requires the research and development of accurate and reliable self-localization approaches. These include visual odometry methods, in which accuracy is potentially superior to GNSS-based techniques while also working in signal-denied areas. This paper presents an in-depth review of state-of-the-art visual and point cloud odometry methods, along with a direct performance comparison of some of these techniques in the autonomous driving context. The evaluated methods include camera, LiDAR, and multi-modal approaches, featuring knowledge and learningbased algorithms, which are compared from a common perspective. This set is subject to a series of tests on road driving public datasets, from which the performance of these techniques is benchmarked and quantitatively measured. Furthermore, we closely discuss their effectiveness against challenging conditions such as pronounced lighting variations, open spaces, and the presence of dynamic objects in the scene. The research demonstrates increased accuracy in point cloud-based methods by surpassing visual techniques by roughly 33.14\% in trajectory error. This survey also identifies a performance stagnation in state-of-theart methodologies, especially in complex conditions. We also examine how multi-modal architectures can circumvent individual sensor limitations. This aligns with the benchmarking results, where the multi-modal algorithms exhibit greater consistency across all scenarios, outperforming the best LiDAR method (CT-ICP) by 5.68\% in translational drift. Additionally, we address how current AI advances constitute a way to overcome the current development plateau.},
+  copyright = {https://creativecommons.org/licenses/by-nc-nd/4.0/},
+  langid = {english},
+  file = {/home/tershire/Zotero/storage/C99I9N7R/Agostinho 등 - 2022 - A Practical Survey on Visual Odometry for Autonomous Driving in Challenging Scenarios and Conditions.pdf}
+}
+
+@article{barrauInvariantExtendedKalman2017,
+  title = {The {{Invariant Extended Kalman Filter}} as a {{Stable Observer}}},
+  author = {Barrau, Axel and Bonnabel, Silvere},
+  year = 2017,
+  month = apr,
+  journal = {IEEE Transactions on Automatic Control},
+  volume = {62},
+  number = {4},
+  pages = {1797--1812},
+  issn = {0018-9286, 1558-2523},
+  doi = {10.1109/TAC.2016.2594085},
+  urldate = {2026-04-13},
+  abstract = {We analyze the convergence aspects of the invariant extended Kalman filter (IEKF), when the latter is used as a deterministic non-linear observer on Lie groups, for continuoustime systems with discrete observations. One of the main features of invariant observers for left-invariant systems on Lie groups is that the estimation error is autonomous. In this paper we first generalize this result by characterizing the (much broader) class of systems for which this property holds. Then, we leverage the result to prove for those systems the local stability of the IEKF around any trajectory, under the standard conditions of the linear case. One mobile robotics example and one inertial navigation example illustrate the interest of the approach. Simulations evidence the fact that the EKF is capable of diverging in some challenging situations, where the IEKF with identical tuning keeps converging.},
+  copyright = {https://ieeexplore.ieee.org/Xplorehelp/downloads/license-information/IEEE.html},
+  langid = {english},
+  file = {/home/tershire/Zotero/storage/2UMAENGB/Barrau 및 Bonnabel - 2017 - The Invariant Extended Kalman Filter as a Stable Observer.pdf}
+}
+
+@article{blancoBriefIntroductionFactor,
+  title = {A Brief Introduction to {{Factor Graphs}}},
+  author = {Blanco, Jose Luis},
+  langid = {english},
+  file = {/home/tershire/Zotero/storage/ZMN2PBUV/Blanco - A brief introduction  to Factor Graphs.pdf}
+}
+
+@article{boylanLeftInvariantEKFRobot,
+  title = {Left-{{Invariant EKF}} for {{Robot Localization}}: {{A Mobile Robotics Project}}},
+  author = {Boylan, Sean and Jiang, Cheng and Haggin, Glen and Wang, Juhan and Zhao, Xuran},
+  abstract = {In this project we derive and implement a LeftInvariant Extended Kalman Filter (LI-EKF) for quadrotor localization in MATLAB and C++. We applied our filter to simulated data that we generated and also to the Zurich Urban Micro Aerial Vehicle Dataset Dataset [1]. The filter takes in IMU data for prediction and GPS data for correction. A traditional EKF is implemented as a baseline for comparison. For the simulated data, the tracking of the left-invariant EKF is accurate and has outperformed that of the tradition EKF in both orientation and position. It also achieved decent tracking result with Zurich Urban Dataset, though the estimation is highly dependent on GPS.},
+  langid = {english},
+  file = {/home/tershire/Zotero/storage/WHSIN84S/Boylan 등 - Left-Invariant EKF for Robot Localization A Mobile Robotics Project.pdf}
+}
+
+@article{carpenterNavigationFilterBest,
+  title = {Navigation {{Filter Best Practices}}},
+  author = {Carpenter, J Russell and D'Souza, Christopher N},
+  langid = {english},
+  file = {/home/tershire/Zotero/storage/YT4PZJ99/Carpenter and D’Souza - Navigation Filter Best Practices.pdf}
+}
+
+@article{davisonMonoSLAMRealTimeSingle2007,
+  title = {{{MonoSLAM}}: {{Real-Time Single Camera SLAM}}},
+  shorttitle = {{{MonoSLAM}}},
+  author = {Davison, Andrew J. and Reid, Ian D. and Molton, Nicholas D. and Stasse, Olivier},
+  year = 2007,
+  month = jun,
+  journal = {IEEE Transactions on Pattern Analysis and Machine Intelligence},
+  volume = {29},
+  number = {6},
+  pages = {1052--1067},
+  issn = {0162-8828, 2160-9292},
+  doi = {10.1109/TPAMI.2007.1049},
+  urldate = {2025-11-09},
+  abstract = {We present a real-time algorithm which can recover the 3D trajectory of a monocular camera, moving rapidly through a previously unknown scene. Our system, which we dub MonoSLAM, is the first successful application of the SLAM methodology from mobile robotics to the ``pure vision'' domain of a single uncontrolled camera, achieving real time but drift-free performance inaccessible to Structure from Motion approaches. The core of the approach is the online creation of a sparse but persistent map of natural landmarks within a probabilistic framework. Our key novel contributions include an active approach to mapping and measurement, the use of a general motion model for smooth camera movement, and solutions for monocular feature initialization and feature orientation estimation. Together, these add up to an extremely efficient and robust algorithm which runs at 30 Hz with standard PC and camera hardware. This work extends the range of robotic systems in which SLAM can be usefully applied, but also opens up new areas. We present applications of MonoSLAM to real-time 3D localization and mapping for a high-performance full-size humanoid robot and live augmented reality with a hand-held camera.},
+  copyright = {https://ieeexplore.ieee.org/Xplorehelp/downloads/license-information/IEEE.html},
+  langid = {english},
+  file = {/home/tershire/Zotero/storage/26ELPM4H/Davison et al. - 2007 - MonoSLAM Real-Time Single Camera SLAM.pdf}
+}
+
+@article{dsouzaInformationFormulationUDU2019,
+  title = {Information {{Formulation}} of the {{UDU Kalman Filter}}},
+  author = {D'Souza, Christopher and Zanetti, Renato},
+  year = 2019,
+  month = feb,
+  journal = {IEEE Transactions on Aerospace and Electronic Systems},
+  volume = {55},
+  number = {1},
+  pages = {493--498},
+  issn = {0018-9251, 1557-9603, 2371-9877},
+  doi = {10.1109/TAES.2018.2850379},
+  urldate = {2025-11-09},
+  abstract = {A new information formulation of the Kalman filter is presented where the information matrix is parameterized as the product of an upper triangular matrix, a diagonal matrix, and the transpose of the triangular matrix (UDU factorization). The UDU factorization of the Kalman filter is known for its numerical stability, this work extends the technique to the information filter. A distinct characteristic of the new algorithm is that measurements can be processed as vectors, while the classic UDU factorization requires scalar measurement processing, i.e. a diagonal measurement noise covariance matrix.},
+  copyright = {https://ieeexplore.ieee.org/Xplorehelp/downloads/license-information/USG.html},
+  langid = {english},
+  file = {/home/tershire/Zotero/storage/TLH6RLWK/D'Souza and Zanetti - 2019 - Information Formulation of the UDU Kalman Filter.pdf}
+}
+
+@article{forsterOnManifoldPreintegrationRealTime2017,
+  title = {On-{{Manifold Preintegration}} for {{Real-Time Visual-Inertial Odometry}}},
+  author = {Forster, Christian and Carlone, Luca and Dellaert, Frank and Scaramuzza, Davide},
+  year = 2017,
+  month = feb,
+  journal = {IEEE Transactions on Robotics},
+  volume = {33},
+  number = {1},
+  eprint = {1512.02363},
+  primaryclass = {cs},
+  pages = {1--21},
+  issn = {1552-3098, 1941-0468},
+  doi = {10.1109/TRO.2016.2597321},
+  urldate = {2025-11-27},
+  abstract = {Current approaches for visual-inertial odometry (VIO) are able to attain highly accurate state estimation via nonlinear optimization. However, real-time optimization quickly becomes infeasible as the trajectory grows over time; this problem is further emphasized by the fact that inertial measurements come at high rate, hence leading to fast growth of the number of variables in the optimization. In this paper, we address this issue by preintegrating inertial measurements between selected keyframes into single relative motion constraints. Our first contribution is a preintegration theory that properly addresses the manifold structure of the rotation group. We formally discuss the generative measurement model as well as the nature of the rotation noise and derive the expression for the maximum a posteriori state estimator. Our theoretical development enables the computation of all necessary Jacobians for the optimization and a-posteriori bias correction in analytic form. The second contribution is to show that the preintegrated IMU model can be seamlessly integrated into a visual-inertial pipeline under the unifying framework of factor graphs. This enables the application of incremental-smoothing algorithms and the use of a structureless model for visual measurements, which avoids optimizing over the 3D points, further accelerating the computation. We perform an extensive evaluation of our monocular VIO pipeline on real and simulated datasets. The results confirm that our modelling effort leads to accurate state estimation in real-time, outperforming state-of-the-art approaches.},
+  archiveprefix = {arXiv},
+  langid = {english},
+  keywords = {Computer Science - Robotics},
+  file = {/home/tershire/Zotero/storage/4NM77HGY/Forster 등 - 2017 - On-Manifold Preintegration for Real-Time Visual-Inertial Odometry.pdf}
+}
+
+@article{fraundorferVisualOdometryPart2012,
+  title = {Visual {{Odometry}} : {{Part II}}: {{Matching}}, {{Robustness}}, {{Optimization}}, and {{Applications}}},
+  shorttitle = {Visual {{Odometry}}},
+  author = {Fraundorfer, Friedrich and Scaramuzza, Davide},
+  year = 2012,
+  month = jun,
+  journal = {IEEE Robotics \& Automation Magazine},
+  volume = {19},
+  number = {2},
+  pages = {78--90},
+  issn = {1070-9932, 1558-223X},
+  doi = {10.1109/MRA.2012.2182810},
+  urldate = {2025-11-28},
+  copyright = {https://ieeexplore.ieee.org/Xplorehelp/downloads/license-information/IEEE.html},
+  langid = {english},
+  file = {/home/tershire/Zotero/storage/FR54NZ4D/Fraundorfer 및 Scaramuzza - 2012 - Visual Odometry  Part II Matching, Robustness, Optimization, and Applications.pdf}
+}
+
+@article{hartleyContactaidedInvariantExtended2020,
+  title = {Contact-Aided Invariant Extended {{Kalman}} Filtering for Robot State Estimation},
+  author = {Hartley, Ross and Ghaffari, Maani and Eustice, Ryan M and Grizzle, Jessy W},
+  year = 2020,
+  month = mar,
+  journal = {The International Journal of Robotics Research},
+  volume = {39},
+  number = {4},
+  pages = {402--430},
+  issn = {0278-3649, 1741-3176},
+  doi = {10.1177/0278364919894385},
+  urldate = {2026-04-13},
+  abstract = {Legged robots require knowledge of pose and velocity in order to maintain stability and execute walking paths. Current solutions either rely on vision data, which is susceptible to environmental and lighting conditions, or fusion of kinematic and contact data with measurements from an inertial measurement unit (IMU). In this work, we develop a contact-aided invariant extended Kalman filter (InEKF) using the theory of Lie groups and invariant observer design. This filter combines contact-inertial dynamics with forward kinematic corrections to estimate pose and velocity along with all current contact points. We show that the error dynamics follows a log-linear autonomous differential equation with several important consequences: (a) the observable state variables can be rendered convergent with a domain of attraction that is independent of the system's trajectory; (b) unlike the standard EKF, neither the linearized error dynamics nor the linearized observation model depend on the current state estimate, which (c) leads to improved convergence properties and (d) a local observability matrix that is consistent with the underlying nonlinear system. Furthermore, we demonstrate how to include IMU biases, add/remove contacts, and formulate both world-centric and robo-centric versions. We compare the convergence of the proposed InEKF with the commonly used quaternion-based EKF though both simulations and experiments on a Cassie-series bipedal robot. Filter accuracy is analyzed using motion capture, while a LiDAR mapping experiment provides a practical use case. Overall, the developed contactaided InEKF provides better performance in comparison with the quaternion-based EKF as a result of exploiting symmetries present in system.},
+  langid = {english},
+  file = {/home/tershire/Zotero/storage/LHZ3YHTK/Hartley 등 - 2020 - Contact-aided invariant extended Kalman filtering for robot state estimation.pdf}
+}
+
+@misc{huangVisualInertialNavigationConcise2019,
+  title = {Visual-{{Inertial Navigation}}: {{A Concise Review}}},
+  shorttitle = {Visual-{{Inertial Navigation}}},
+  author = {Huang, Guoquan},
+  year = 2019,
+  month = jun,
+  number = {arXiv:1906.02650},
+  eprint = {1906.02650},
+  primaryclass = {cs},
+  publisher = {arXiv},
+  doi = {10.48550/arXiv.1906.02650},
+  urldate = {2025-11-27},
+  abstract = {As inertial and visual sensors are becoming ubiquitous, visual-inertial navigation systems (VINS) have prevailed in a wide range of applications from mobile augmented reality to aerial navigation to autonomous driving, in part because of the complementary sensing capabilities and the decreasing costs and size of the sensors. In this paper, we survey thoroughly the research efforts taken in this field and strive to provide a concise but complete review of the related work -- which is unfortunately missing in the literature while being greatly demanded by researchers and engineers -- in the hope to accelerate the VINS research and beyond in our society as a whole.},
+  archiveprefix = {arXiv},
+  langid = {english},
+  keywords = {Computer Science - Robotics},
+  file = {/home/tershire/Zotero/storage/9AF4GBUF/Huang - 2019 - Visual-Inertial Navigation A Concise Review.pdf}
+}
+
+@article{ibrahimEnhancedAutonomousVehicle2023,
+  title = {Enhanced {{Autonomous Vehicle Positioning Using}} a {{Loosely Coupled INS}}/{{GNSS-Based Invariant-EKF Integration}}},
+  author = {Ibrahim, Ahmed and Abosekeen, Ashraf and Azouz, Ahmed and Noureldin, Aboelmagd},
+  year = 2023,
+  month = jul,
+  journal = {Sensors},
+  volume = {23},
+  number = {13},
+  pages = {6097},
+  issn = {1424-8220},
+  doi = {10.3390/s23136097},
+  urldate = {2026-04-13},
+  abstract = {High-precision navigation solutions are a main requirement for autonomous vehicle (AV) applications. Global navigation satellite systems (GNSSs) are the prime source of navigation information for such applications. However, some places such as tunnels, underpasses, inside parking garages, and urban high-rise buildings suffer from GNSS signal degradation or unavailability. Therefore, another system is required to provide a continuous navigation solution, such as the inertial navigation system (INS). The vehicle's onboard inertial measuring unit (IMU) is the main INS input measurement source. However, the INS solution drifts over time due to IMU-associated errors and the mechanization process itself. Therefore, INS/GNSS integration is the proper solution for both systems' drawbacks. Traditionally, a linearized Kalman filter (LKF) such as the extended Kalman filter (EKF) is utilized as a navigation filter. The EKF deals only with the linearized errors and suppresses the higher orders using the Taylor expansion up to the first order. This paper introduces a loosely coupled INS/GNSS integration scheme using the invariant extended Kalman filter (IEKF). The IEKF state estimate is independent of the Jacobians that are derived in the EKF; instead, it uses the matrix Lie group. The proposed INS/GNSS integration using IEKF is applied to a real road trajectory for performance validation. The results show a significant enhancement when using the proposed system compared to the traditional INS/GNSS integrated system that uses EKF in both GNSS signal presence and blockage cases. The overall trajectory 2D-position RMS error reduced from 19.4 m to 3.3 m with 82.98\% improvement and the 2D-position max error reduced from 73.9 m to 14.2 m with 80.78\% improvement.},
+  langid = {english},
+  file = {/home/tershire/Zotero/storage/GKRTELG5/Ibrahim 등 - 2023 - Enhanced Autonomous Vehicle Positioning Using a Loosely Coupled INSGNSS-Based Invariant-EKF Integra.pdf}
+}
+
+@misc{imNotesKalmanFilter2024,
+  title = {Notes on {{Kalman Filter}} ({{KF}}, {{EKF}}, {{ESKF}}, {{IEKF}}, {{IESKF}})},
+  author = {Im, Gyubeom},
+  year = 2024,
+  month = jun,
+  number = {arXiv:2406.06427},
+  eprint = {2406.06427},
+  primaryclass = {cs},
+  publisher = {arXiv},
+  doi = {10.48550/arXiv.2406.06427},
+  urldate = {2025-11-09},
+  abstract = {The Kalman Filter (KF) is a powerful mathematical tool widely used for state estimation in various domains, including Simultaneous Localization and Mapping (SLAM). This paper presents an in-depth introduction to the Kalman Filter and explores its several extensions: the Extended Kalman Filter (EKF), the Error-State Kalman Filter (ESKF), the Iterated Extended Kalman Filter (IEKF), and the Iterated Error-State Kalman Filter (IESKF). Each variant is meticulously examined, with detailed derivations of their mathematical formulations and discussions on their respective advantages and limitations. By providing a comprehensive overview of these techniques, this paper aims to offer valuable insights into their applications in SLAM and enhance the understanding of state estimation methodologies in complex environments.},
+  archiveprefix = {arXiv},
+  langid = {english},
+  keywords = {Computer Science - Robotics},
+  file = {/home/tershire/Zotero/storage/K4SLUT5M/Im - 2024 - Notes on Kalman Filter (KF, EKF, ESKF, IEKF, IESKF).pdf}
+}
+
+@article{macariobarrosComprehensiveSurveyVisual2022,
+  title = {A {{Comprehensive Survey}} of {{Visual SLAM Algorithms}}},
+  author = {Macario Barros, Andr{\'e}a and Michel, Maugan and Moline, Yoann and Corre, Gwenol{\'e} and Carrel, Fr{\'e}d{\'e}rick},
+  year = 2022,
+  month = feb,
+  journal = {Robotics},
+  volume = {11},
+  number = {1},
+  pages = {24},
+  issn = {2218-6581},
+  doi = {10.3390/robotics11010024},
+  urldate = {2025-11-27},
+  abstract = {Simultaneous localization and mapping (SLAM) techniques are widely researched, since they allow the simultaneous creation of a map and the sensors' pose estimation in an unknown environment. Visual-based SLAM techniques play a significant role in this field, as they are based on a low-cost and small sensor system, which guarantees those advantages compared to other sensorbased SLAM techniques. The literature presents different approaches and methods to implement visual-based SLAM systems. Among this variety of publications, a beginner in this domain may find problems with identifying and analyzing the main algorithms and selecting the most appropriate one according to his or her project constraints. Therefore, we present the three main visual-based SLAM approaches (visual-only, visual-inertial, and RGB-D SLAM), providing a review of the main algorithms of each approach through diagrams and flowcharts, and highlighting the main advantages and disadvantages of each technique. Furthermore, we propose six criteria that ease the SLAM algorithm's analysis and consider both the software and hardware levels. In addition, we present some major issues and future directions on visual-SLAM field, and provide a general overview of some of the existing benchmark datasets. This work aims to be the first step for those initiating a SLAM project to have a good perspective of SLAM techniques' main elements and characteristics.},
+  langid = {english},
+  file = {/home/tershire/Zotero/storage/PSEL2HAH/Macario Barros 등 - 2022 - A Comprehensive Survey of Visual SLAM Algorithms.pdf}
+}
+
+@article{majdikZurichUrbanMicro2017,
+  title = {The {{Zurich}} Urban Micro Aerial Vehicle Dataset},
+  author = {Majdik, Andr{\'a}s L and Till, Charles and Scaramuzza, Davide},
+  year = 2017,
+  month = mar,
+  journal = {The International Journal of Robotics Research},
+  volume = {36},
+  number = {3},
+  pages = {269--273},
+  issn = {0278-3649, 1741-3176},
+  doi = {10.1177/0278364917702237},
+  urldate = {2026-04-14},
+  abstract = {This paper presents a dataset recorded on-board a camera-equipped Micro Aerial Vehicle (MAV) flying within the urban streets of Zurich, Switzerland, at low altitudes (i.e., 5-15 meters above the ground). The 2 km dataset consists of time synchronized aerial high-resolution images, GPS and IMU sensor data, ground-level street view images, and ground truth data. The dataset is ideal to evaluate and benchmark appearance-based localization, monocular visual odometry, simultaneous localization and mapping (SLAM), and online 3D reconstruction algorithms for MAVs in urban environments.},
+  langid = {english},
+  file = {/home/tershire/Zotero/storage/QQA3ZDNM/Majdik 등 - 2017 - The Zurich urban micro aerial vehicle dataset.pdf}
+}
+
+@inproceedings{mccabeComparisonFactorizationbasedFiltering2017,
+  title = {Comparison of {{Factorization-based Filtering}} for {{Landing Navigation}}},
+  booktitle = {{{AIAA Guidance}}, {{Navigation}}, and {{Control Conference}}},
+  author = {McCabe, James S. and Brown, Aaron J. and DeMars, Kyle J. and Carson, John M.},
+  year = 2017,
+  month = jan,
+  publisher = {{American Institute of Aeronautics and Astronautics}},
+  address = {Grapevine, Texas},
+  doi = {10.2514/6.2017-1498},
+  urldate = {2025-11-09},
+  isbn = {978-1-62410-450-3},
+  langid = {english},
+  file = {/home/tershire/Zotero/storage/NDTTFT72/McCabe et al. - 2017 - Comparison of Factorization-based Filtering for Landing Navigation.pdf}
+}
+
+@inproceedings{mccabeComparisonFactorizationbasedFiltering2017a,
+  title = {Comparison of {{Factorization-based Filtering}} for {{Landing Navigation}}},
+  booktitle = {{{AIAA Guidance}}, {{Navigation}}, and {{Control Conference}}},
+  author = {McCabe, James S. and Brown, Aaron J. and DeMars, Kyle J. and Carson, John M.},
+  year = 2017,
+  month = jan,
+  publisher = {{American Institute of Aeronautics and Astronautics}},
+  address = {Grapevine, Texas},
+  doi = {10.2514/6.2017-1498},
+  urldate = {2025-11-09},
+  isbn = {978-1-62410-450-3},
+  langid = {english},
+  file = {/home/tershire/Zotero/storage/VNZIHF2T/McCabe et al. - 2017 - Comparison of Factorization-based Filtering for Landing Navigation.pdf}
+}
+
+@article{nashedBriefSurveyLoop,
+  title = {A {{Brief Survey}} of {{Loop Closure Detection}}: {{A Case}} for {{Rethinking Evaluation}} of {{Intelligent Systems}}},
+  author = {Nashed, Samer B},
+  abstract = {The process of determining if an agent has returned to a previously visited location by analyzing data from its sensors, known variably as loop closure detection and place recognition, is an essential component of modern mobile robotic systems. It is also one of the most challenging instances of the canonical `data association problem', the problem of determining if and how two different sensor readings may or may not originate from the same physical entity. Until recently, hand-crafted solutions have dominated research on loop closure detection. As approaches based on deep learning begin to outperform more classical techniques, we have an excellent opportunity to rethink the definition of success, what different failure cases can teach us about the frontiers of robotic intelligence, and how to generate more interesting hypotheses in a more targeted manner. Here, we present an overview of loop closure detection research, focusing on its role within the robotics stack, why it is still an unsolved problem, and some of the successes and failures of research to-date. We go on to propose a new experimental paradigm and argue that loop closure detection offers a unique vehicle for studying machine learning in embodied systems, and embodied intelligent systems more broadly.},
+  langid = {english},
+  file = {/home/tershire/Zotero/storage/LPITC3ZM/Nashed - A Brief Survey of Loop Closure Detection A Case for Rethinking Evaluation of Intelligent Systems.pdf}
+}
+
+@article{ozyagcilarAccuracyAngleEstimation,
+  title = {Accuracy of {{Angle Estimation}} in {{eCompass}} and {{3D Pointer Applications}}},
+  author = {Ozyagcilar, Talat},
+  langid = {english},
+  file = {/home/tershire/Zotero/storage/GT4LMZEA/Ozyagcilar - Accuracy of Angle Estimation in eCompass and 3D Pointer Applications.pdf}
+}
+
+@article{ozyagcilarCalibratingECompassPresence,
+  title = {Calibrating an {{eCompass}} in the {{Presence}} of {{Hard}} and {{Soft Iron Interference}}},
+  author = {Ozyagcilar, Talat},
+  langid = {english},
+  file = {/home/tershire/Zotero/storage/B6FSHVSE/Ozyagcilar - Calibrating an eCompass in the Presence of Hard and Soft Iron Interference.pdf}
+}
+
+@article{ozyagcilarImplementingTiltCompensatedECompass,
+  title = {Implementing a {{Tilt-Compensated eCompass}} Using {{Accelerometer}} and {{Magnetometer Sensors}}},
+  author = {Ozyagcilar, Talat},
+  langid = {english},
+  file = {/home/tershire/Zotero/storage/H9C3B8FX/Ozyagcilar - Implementing a Tilt-Compensated eCompass using Accelerometer and Magnetometer Sensors.pdf}
+}
+
+@article{ozyagcilarLayoutRecommendationsPCBs,
+  title = {Layout {{Recommendations}} for {{PCBs Using}} a {{Magnetometer Sensor}}},
+  author = {Ozyagcilar, Talat},
+  langid = {english},
+  file = {/home/tershire/Zotero/storage/6SMHK7HL/Ozyagcilar - Layout Recommendations for PCBs Using a Magnetometer Sensor.pdf}
+}
+
+@misc{panRUSSORobustUnderwater2025,
+  title = {{{RUSSO}}: {{Robust Underwater SLAM}} with {{Sonar Optimization}} against {{Visual Degradation}}},
+  shorttitle = {{{RUSSO}}},
+  author = {Pan, Shu and Hong, Ziyang and Hu, Zhangrui and Xu, Xiandong and Lu, Wenjie and Hu, Liang},
+  year = 2025,
+  month = mar,
+  number = {arXiv:2503.01434},
+  eprint = {2503.01434},
+  primaryclass = {cs.RO},
+  publisher = {arXiv},
+  doi = {10.48550/arXiv.2503.01434},
+  urldate = {2026-05-16},
+  abstract = {Visual degradation in underwater environments poses unique and significant challenges, which distinguishes underwater SLAM from popular vision-based SLAM on the ground. In this paper, we propose RUSSO, a robust underwater SLAM system which fuses stereo camera, inertial measurement unit (IMU), and imaging sonar to achieve robust and accurate localization in challenging underwater environments for 6 degrees of freedom (DoF) estimation. During visual degradation, the system is reduced to a sonar-inertial system estimating 3-DoF poses. The sonar pose estimation serves as a strong prior for IMU propagation, thereby enhancing the reliability of pose estimation with IMU propagation. Additionally, we propose a SLAM initialization method that leverages the imaging sonar to counteract the lack of visual features during the initialization stage of SLAM. We extensively validate RUSSO through experiments in simulator, pool, and sea scenarios. The results demonstrate that RUSSO achieves better robustness and localization accuracy compared to the state-of-the-art visual-inertial SLAM systems, especially in visually challenging scenarios. To the best of our knowledge, this is the first time fusing stereo camera, IMU, and imaging sonar to realize robust underwater SLAM against visual degradation. We will release our open-source codes, dataset and experiment videos for the community3.},
+  archiveprefix = {arXiv},
+  langid = {english},
+  keywords = {Computer Science - Robotics},
+  file = {/home/tershire/Zotero/storage/NWZE5LXC/Pan et al. - 2025 - RUSSO Robust Underwater SLAM with Sonar Optimization against Visual Degradation.pdf}
+}
+
+@article{qinVINSMonoRobustVersatile2018,
+  title = {{{VINS-Mono}}: {{A Robust}} and {{Versatile Monocular Visual-Inertial State Estimator}}},
+  shorttitle = {{{VINS-Mono}}},
+  author = {Qin, Tong and Li, Peiliang and Shen, Shaojie},
+  year = 2018,
+  month = aug,
+  journal = {IEEE Transactions on Robotics},
+  volume = {34},
+  number = {4},
+  eprint = {1708.03852},
+  primaryclass = {cs},
+  pages = {1004--1020},
+  issn = {1552-3098, 1941-0468},
+  doi = {10.1109/TRO.2018.2853729},
+  urldate = {2026-04-05},
+  abstract = {A monocular visual-inertial system (VINS), consisting of a camera and a low-cost inertial measurement unit (IMU), forms the minimum sensor suite for metric six degreesof-freedom (DOF) state estimation. However, the lack of direct distance measurement poses significant challenges in terms of IMU processing, estimator initialization, extrinsic calibration, and nonlinear optimization. In this work, we present VINSMono: a robust and versatile monocular visual-inertial state estimator. Our approach starts with a robust procedure for estimator initialization and failure recovery. A tightly-coupled, nonlinear optimization-based method is used to obtain high accuracy visual-inertial odometry by fusing pre-integrated IMU measurements and feature observations. A loop detection module, in combination with our tightly-coupled formulation, enables relocalization with minimum computation overhead. We additionally perform four degrees-of-freedom pose graph optimization to enforce global consistency. We validate the performance of our system on public datasets and real-world experiments and compare against other state-of-the-art algorithms. We also perform onboard closed-loop autonomous flight on the MAV platform and port the algorithm to an iOS-based demonstration. We highlight that the proposed work is a reliable, complete, and versatile system that is applicable for different applications that require high accuracy localization. We open source our implementations for both PCs1 and iOS mobile devices2.},
+  archiveprefix = {arXiv},
+  langid = {english},
+  keywords = {Computer Science - Robotics},
+  file = {/home/tershire/Zotero/storage/GH35L4AD/Qin et al. - 2018 - VINS-Mono A Robust and Versatile Monocular Visual-Inertial State Estimator.pdf}
+}
+
+@inproceedings{rahmanSVIn2UnderwaterSLAM2019,
+  title = {{{SVIn2}}: {{An Underwater SLAM System}} Using {{Sonar}}, {{Visual}}, {{Inertial}}, and {{Depth Sensor}}},
+  shorttitle = {{{SVIn2}}},
+  booktitle = {2019 {{IEEE}}/{{RSJ International Conference}} on {{Intelligent Robots}} and {{Systems}} ({{IROS}})},
+  author = {Rahman, Sharmin and Li, Alberto Quattrini and Rekleitis, Ioannis},
+  year = 2019,
+  month = nov,
+  eprint = {1810.03200},
+  primaryclass = {cs},
+  pages = {1861--1868},
+  doi = {10.1109/IROS40897.2019.8967703},
+  urldate = {2026-05-02},
+  abstract = {This paper presents a novel tightly-coupled keyframe-based Simultaneous Localization and Mapping (SLAM) system with loop-closing and relocalization capabilities targeted for the underwater domain.},
+  archiveprefix = {arXiv},
+  langid = {english},
+  keywords = {Computer Science - Robotics},
+  file = {/home/tershire/Zotero/storage/X6ZEBFK8/Rahman et al. - 2019 - SVIn2 An Underwater SLAM System using Sonar, Visual, Inertial, and Depth Sensor.pdf}
+}
+
+@misc{ramosSummaryUDKalman2022,
+  title = {A Summary on the {{UD Kalman Filter}}},
+  author = {Ramos, J. Humberto and Brink, Kevin and Ganesh, Prashant and Hurtado, John E.},
+  year = 2022,
+  month = jun,
+  number = {arXiv:2203.06105},
+  eprint = {2203.06105},
+  primaryclass = {eess},
+  publisher = {arXiv},
+  doi = {10.48550/arXiv.2203.06105},
+  urldate = {2025-11-09},
+  abstract = {This document contains a concise and unified reference for one of the existing mechanizations of the UD Kalman filter. The associated matrix algorithms are also included along with the corresponding references.},
+  archiveprefix = {arXiv},
+  langid = {english},
+  keywords = {Computer Science - Systems and Control,Electrical Engineering and Systems Science - Systems and Control},
+  file = {/home/tershire/Zotero/storage/J3KGXXCH/Ramos et al. - 2022 - A summary on the UD Kalman Filter.pdf}
+}
+
+@article{scaramuzzaVisualOdometryTutorial2011,
+  title = {Visual {{Odometry}} [{{Tutorial}}]},
+  author = {Scaramuzza, Davide and Fraundorfer, Friedrich},
+  year = 2011,
+  month = dec,
+  journal = {IEEE Robotics \& Automation Magazine},
+  volume = {18},
+  number = {4},
+  pages = {80--92},
+  issn = {1070-9932, 1558-223X},
+  doi = {10.1109/MRA.2011.943233},
+  urldate = {2025-11-28},
+  copyright = {https://ieeexplore.ieee.org/Xplorehelp/downloads/license-information/IEEE.html},
+  langid = {english},
+  file = {/home/tershire/Zotero/storage/9CWNY45T/Scaramuzza 및 Fraundorfer - 2011 - Visual Odometry [Tutorial].pdf}
+}
+
+@misc{solaQuaternionKinematicsErrorstate2017,
+  title = {Quaternion Kinematics for the Error-State {{Kalman}} Filter},
+  author = {Sol{\`a}, Joan},
+  year = 2017,
+  month = nov,
+  number = {arXiv:1711.02508},
+  eprint = {1711.02508},
+  primaryclass = {cs.RO},
+  publisher = {arXiv},
+  doi = {10.48550/arXiv.1711.02508},
+  urldate = {2026-05-23},
+  abstract = {This article is an exhaustive revision of concepts and formulas related to quaternions and rotations in 3D space, and their proper use in estimation engines such as the error-state Kalman filter.},
+  archiveprefix = {arXiv},
+  langid = {english},
+  keywords = {Computer Science - Robotics},
+  file = {/home/tershire/Zotero/storage/3IQXE7GM/Solà - 2017 - Quaternion kinematics for the error-state Kalman filter.pdf}
+}
+
+@article{sommerWhyHowAvoid2018,
+  title = {Why and {{How}} to {{Avoid}} the {{Flipped Quaternion Multiplication}}},
+  author = {Sommer, Hannes and Gilitschenski, Igor and Bloesch, Michael and Weiss, Stephan and Siegwart, Roland and Nieto, Juan},
+  year = 2018,
+  month = jul,
+  journal = {Aerospace},
+  volume = {5},
+  number = {3},
+  pages = {72},
+  issn = {2226-4310},
+  doi = {10.3390/aerospace5030072},
+  urldate = {2026-05-23},
+  abstract = {Over the last decades quaternions have become a crucial and very successful tool for attitude representation in robotics and aerospace. However, there is a major problem that is continuously causing trouble in practice when it comes to exchanging formulas or implementations: there are two quaternion multiplications commonly in use, Hamilton's multiplication and its flipped version, which is often associated with NASA's Jet Propulsion Laboratory. This paper explains the underlying problem for the popular passive world-to-body usage of rotation quaternions, and promotes an alternative solution compatible with Hamilton's multiplication. Furthermore, it argues for discontinuing the flipped multiplication. Additionally, it provides recipes for efficiently detecting relevant conventions and migrating formulas or algorithms between them.},
+  langid = {english},
+  file = {/home/tershire/Zotero/storage/TCPH6XNG/Sommer et al. - 2018 - Why and How to Avoid the Flipped Quaternion Multiplication.pdf}
+}
+
+@article{sunImprovedInitialAlignment2024,
+  title = {An {{Improved Initial Alignment Method Based}} on {{SE2}}(3)/{{EKF}} for {{SINS}}/{{GNSS Integrated Navigation System}} with {{Large Misalignment Angles}}},
+  author = {Sun, Jin and Chen, Yuxin and Cui, Bingbo},
+  year = 2024,
+  month = may,
+  journal = {Sensors},
+  volume = {24},
+  number = {9},
+  pages = {2945},
+  issn = {1424-8220},
+  doi = {10.3390/s24092945},
+  urldate = {2026-04-13},
+  abstract = {This paper proposes an improved initial alignment method for a strap-down inertial navigation system/global navigation satellite system (SINS/GNSS) integrated navigation system with large misalignment angles. Its methodology is based on the three-dimensional special Euclidean group and extended Kalman filter (SE2(3)/EKF) and aims to overcome the challenges of achieving fast alignment under large misalignment angles using traditional methods. To accurately characterize the state errors of attitude, velocity, and position, these elements are constructed as elements of a Lie group. The nonlinear error on the Lie group can then be well quantified. Additionally, a group vector mixed error model is developed, taking into account the zero bias errors of gyroscopes and accelerometers. Using this new error definition, a GNSS-assisted SINS dynamic initial alignment algorithm is derived, which is based on the invariance of velocity and position measurements. Simulation experiments demonstrate that the alignment method based on SE2(3)/EKF can achieve a higher accuracy in various scenarios with large misalignment angles, while the attitude error can be rapidly reduced to a lower level.},
+  langid = {english},
+  file = {/home/tershire/Zotero/storage/HRA5CR62/Sun 등 - 2024 - An Improved Initial Alignment Method Based on SE2(3)EKF for SINSGNSS Integrated Navigation System.pdf}
+}
+
+@article{taylorFactorGraphsNavigation2024,
+  title = {Factor {{Graphs}} for {{Navigation Applications}}: {{A Tutorial}}},
+  shorttitle = {Factor {{Graphs}} for {{Navigation Applications}}},
+  author = {Taylor, Clark and Gross, Jason},
+  year = 2024,
+  journal = {NAVIGATION: Journal of the Institute of Navigation},
+  volume = {71},
+  number = {3},
+  pages = {navi.653},
+  issn = {0028-1522, 2161-4296},
+  doi = {10.33012/navi.653},
+  urldate = {2025-12-01},
+  abstract = {This tutorial presents the factor graph, a recently introduced estimation framework that is a generalization of the Kalman filter. An approach for con structing a factor graph, with its associated optimization problem and efficient sparse linear algebra formulation, is described. A comparison with Kalman fil ters is presented, together with examples of the generality of factor graphs. A brief survey of previous applications of factor graphs to navigation problems is also presented. Source code for the extended Kalman filter comparison and for generating the graphs in this paper is available at https://github.com/cntaylor/ factorGraph2DsatelliteExample.},
+  langid = {english},
+  file = {/home/tershire/Zotero/storage/4EJQTELF/Taylor 및 Gross - 2024 - Factor Graphs for Navigation Applications A Tutorial.pdf}
+}
+
+@article{zanettiRotationsTransformationsLeft2019,
+  title = {Rotations, {{Transformations}}, {{Left Quaternions}}, {{Right Quaternions}}?},
+  author = {Zanetti, Renato},
+  year = 2019,
+  month = sep,
+  journal = {The Journal of the Astronautical Sciences},
+  volume = {66},
+  number = {3},
+  pages = {361--381},
+  issn = {0021-9142, 2195-0571},
+  doi = {10.1007/s40295-018-00151-2},
+  urldate = {2026-05-23},
+  langid = {english},
+  file = {/home/tershire/Zotero/storage/ZPA8AKCN/Zanetti - 2019 - Rotations, Transformations, Left Quaternions, Right Quaternions.pdf}
+}
