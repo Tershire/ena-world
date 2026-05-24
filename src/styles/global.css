@@ -106,6 +106,27 @@ a.internal.new {
   color: var(--color-ink-faded);
   font-style: italic;
 }
+.prose table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.9em;
+  margin: 1.5rem 0;
+  overflow-x: auto;
+  display: block;
+}
+.prose th,
+.prose td {
+  border: 1px solid var(--color-sepia);
+  padding: 0.45rem 0.85rem;
+  text-align: left;
+}
+.prose th {
+  background: rgba(196, 154, 108, 0.12);
+  font-weight: 600;
+}
+.prose tr:nth-child(even) td {
+  background: rgba(196, 154, 108, 0.05);
+}
 
 /* ── Marine lab: pelagic scroll ────────────────────────── */
 .pelagic-bg {
