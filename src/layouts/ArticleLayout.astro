@@ -91,6 +91,14 @@ const hasNav = navArticles && navArticles.length > 0 && navBase;
   headings.forEach((h, i) => {
     if (!h.id) h.id = `s${i}`;
     const level = parseInt(h.tagName[1]);
+
+    // Separator before "References"
+    if (h.textContent?.trim() === 'References') {
+      const sep = document.createElement('li');
+      sep.style.cssText = 'border-top:1px solid var(--color-sepia);margin:0.45rem 0 0.1rem;';
+      tocList.appendChild(sep);
+    }
+
     const li = document.createElement('li');
     const a  = document.createElement('a');
     a.href = `#${h.id}`;
@@ -139,6 +147,35 @@ const hasNav = navArticles && navArticles.length > 0 && navBase;
     { rootMargin: '-10% 0% -60% 0%' }
   );
   headings.forEach((h) => obs.observe(h));
+
+  // ── Citation tooltips ──────────────────────────────
+  const tooltip = document.createElement('div');
+  tooltip.className = 'cite-tooltip';
+  document.body.appendChild(tooltip);
+
+  // Build map: "1" → reference innerHTML
+  const refMap: Record<string, string> = {};
+  document.querySelectorAll<HTMLElement>('.references p').forEach((p) => {
+    const m = p.textContent?.match(/^\[(\d+)\]/);
+    if (m) refMap[m[1]] = p.innerHTML;
+  });
+
+  document.querySelectorAll<HTMLElement>('.cite').forEach((el) => {
+    el.addEventListener('mouseenter', () => {
+      const nums = (el.textContent ?? '').replace(/[\[\]\s]/g, '').split(',').filter(Boolean);
+      const html = nums.map(n => refMap[n]).filter(Boolean).join('<br>');
+      if (!html) return;
+      tooltip.innerHTML = html;
+      tooltip.style.display = 'block';
+      const rect = el.getBoundingClientRect();
+      const top  = rect.bottom + window.scrollY + 6;
+      const left = Math.min(rect.left + window.scrollX, window.innerWidth - tooltip.offsetWidth - 16);
+      tooltip.style.top  = `${top}px`;
+      tooltip.style.left = `${Math.max(8, left)}px`;
+    });
+    el.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
+  });
+  window.addEventListener('scroll', () => { tooltip.style.display = 'none'; }, { passive: true });
 </script>
 
 <style>

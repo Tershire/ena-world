@@ -130,6 +130,21 @@ a.internal.new {
   font-size: 0.8em;
   color: var(--color-sky);
   font-weight: 600;
+  cursor: help;
+}
+.cite-tooltip {
+  display: none;
+  position: absolute;
+  z-index: 300;
+  background: var(--bg-panel);
+  border: 1px solid var(--color-sepia);
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.8rem;
+  font-size: 0.8rem;
+  max-width: 400px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  line-height: 1.6;
+  color: var(--color-ink);
 }
 .references {
   font-size: 0.875em;
