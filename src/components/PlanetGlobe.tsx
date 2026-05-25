@@ -1026,34 +1026,41 @@ function buildAuroraCrown(): THREE.BufferGeometry {
 
 // ── Animated submarine ───────────────────────────────────
 function buildSubmarine(): { group: THREE.Group } {
-  const g         = new THREE.Group();
-  const hullMat   = new THREE.MeshLambertMaterial({ color: 0x253050 });
-  const towerMat  = new THREE.MeshLambertMaterial({ color: 0xd4a820 }); // yellow sail — easy to spot
-  const propMat   = new THREE.MeshLambertMaterial({ color: 0x8898b0 });
-  const accentMat = new THREE.MeshLambertMaterial({ color: 0xd4a820 });
+  const g        = new THREE.Group();
+  const hullMat  = new THREE.MeshLambertMaterial({ color: 0xf2c430 }); // yellow hull
+  const towerMat = new THREE.MeshLambertMaterial({ color: 0x1e2a3a }); // dark navy tower
+  const propMat  = new THREE.MeshLambertMaterial({ color: 0x8898b0 });
+  const winMat   = new THREE.MeshLambertMaterial({
+    color: 0xfff8d0,
+    emissive: new THREE.Color(0xffdd88),
+    emissiveIntensity: 1.0,
+  });
 
-  // Hull — 1.5× the plane's fuselage scale
+  // Hull
   const hullGeo = new THREE.CapsuleGeometry(0.013, 0.080, 4, 8);
   hullGeo.rotateX(Math.PI / 2);
   g.add(new THREE.Mesh(hullGeo, hullMat));
 
-  // Yellow hull band near the bow
-  const bandGeo = new THREE.CylinderGeometry(0.0135, 0.0135, 0.007, 8, 1, true);
-  bandGeo.rotateX(Math.PI / 2);
-  bandGeo.translate(0, 0, 0.012);
-  g.add(new THREE.Mesh(bandGeo, accentMat));
-
-  // Conning tower (sail) — bright yellow for visibility
+  // Conning tower — yellow, same as hull
   const towerGeo = new THREE.BoxGeometry(0.013, 0.022, 0.026);
   towerGeo.translate(0, 0.017, 0.009);
-  g.add(new THREE.Mesh(towerGeo, towerMat));
+  g.add(new THREE.Mesh(towerGeo, hullMat));
 
-  // Periscope
+  // Periscope — dark navy
   const periGeo = new THREE.CylinderGeometry(0.0015, 0.0015, 0.020, 4);
   periGeo.translate(0.002, 0.040, 0.008);
   g.add(new THREE.Mesh(periGeo, towerMat));
 
-  // Forward diving planes (wide — creates visible silhouette)
+  // Porthole windows — 3 per side, always lit
+  for (const side of [-1, 1]) {
+    for (let wi = 0; wi < 3; wi++) {
+      const wGeo = new THREE.BoxGeometry(0.002, 0.004, 0.005);
+      wGeo.translate(side * 0.014, 0, -0.015 + wi * 0.015);
+      g.add(new THREE.Mesh(wGeo, winMat));
+    }
+  }
+
+  // Forward diving planes
   const fPlaneGeo = new THREE.BoxGeometry(0.042, 0.002, 0.009);
   fPlaneGeo.translate(0, 0, 0.022);
   g.add(new THREE.Mesh(fPlaneGeo, hullMat));
@@ -1374,7 +1381,7 @@ export default function PlanetGlobe({ base }: { base: string }) {
       : marineVec.clone();
     const subOrbitRight = new THREE.Vector3().crossVectors(subDockVec, new THREE.Vector3(0, 1, 0)).normalize();
     const SUB_SPEED   = (Math.PI * 2) / 60;   // 60 s per full orbit
-    const SUB_DEPTH   = 0.984;                 // snorkel depth: tower pokes just above ocean
+    const SUB_DEPTH   = 0.972;                 // snorkel depth: tower pokes just above ocean
     const SUB_SURF_R  = 1.016;                 // fully surfaced: hull clear of ocean
     const SUB_DOCK_R  = 1.016;
     const SUB_DEPART  = 0.32;                  // angular span to dive after departing
