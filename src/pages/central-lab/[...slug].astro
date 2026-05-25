@@ -3,19 +3,26 @@ import { getCollection, render } from 'astro:content';
 import ArticleLayout from '../../layouts/ArticleLayout.astro';
 
 export async function getStaticPaths() {
-  const articles = await getCollection('central-lab', ({ data }) => data.public);
+  const allEntries = await getCollection('central-lab');
+  const articles = allEntries.filter((e) => !e.id.endsWith('/_index') && e.data.public);
+  const dirEntries = allEntries.filter((e) => e.id.endsWith('/_index'));
   return articles.map((article) => ({
     params: { slug: article.id },
-    props: { article, allArticles: articles },
+    props: { article, allArticles: articles, dirEntries },
   }));
 }
 
-const { article, allArticles } = Astro.props;
+const { article, allArticles, dirEntries } = Astro.props;
 const { Content } = await render(article);
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const navBase = `${base}/central-lab`;
-const navArticles = allArticles.map((a) => ({ id: a.id, title: a.data.title }));
+const navArticles = allArticles.map((a) => ({ id: a.id, title: a.data.title, order: a.data.order }));
+const navDirs = dirEntries.map((d) => ({
+  path: d.id.replace('/_index', ''),
+  order: d.data.order ?? 999,
+  title: d.data.title,
+}));
 ---
 
 <ArticleLayout
@@ -24,6 +31,7 @@ const navArticles = allArticles.map((a) => ({ id: a.id, title: a.data.title }));
   date={article.data.date}
   tags={article.data.tags}
   navArticles={navArticles}
+  navDirs={navDirs}
   navBase={navBase}
   navLabel="Central Lab"
   currentId={article.id}

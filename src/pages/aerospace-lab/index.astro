@@ -3,13 +3,20 @@ import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import NavTree from '../../components/NavTree.astro';
 
-const raw = (await getCollection('aerospace-lab'))
-  .filter((a) => a.data.public)
+const allEntries = await getCollection('aerospace-lab');
+const raw = allEntries
+  .filter((a) => !a.id.endsWith('/_index') && a.data.public)
   .sort((a, b) => (b.data.date?.valueOf() ?? 0) - (a.data.date?.valueOf() ?? 0));
+const dirEntries = allEntries.filter((e) => e.id.endsWith('/_index'));
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const navBase = `${base}/aerospace-lab`;
-const navArticles = raw.map((a) => ({ id: a.id, title: a.data.title }));
+const navArticles = raw.map((a) => ({ id: a.id, title: a.data.title, order: a.data.order }));
+const navDirs = dirEntries.map((d) => ({
+  path: d.id.replace('/_index', ''),
+  order: d.data.order ?? 999,
+  title: d.data.title,
+}));
 ---
 
 <BaseLayout title="Aerospace Lab" noFooter={true}>
@@ -17,7 +24,7 @@ const navArticles = raw.map((a) => ({ id: a.id, title: a.data.title }));
     {navArticles.length > 0 && (
       <aside class="index-nav">
         <div class="nav-sticky">
-          <NavTree articles={navArticles} base={navBase} accent="var(--color-sky)" label="Aerospace Lab" />
+          <NavTree articles={navArticles} dirs={navDirs} base={navBase} accent="var(--color-sky)" label="Aerospace Lab" />
         </div>
       </aside>
     )}

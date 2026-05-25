@@ -1,32 +1,45 @@
 ---
 interface Props {
-  articles: { id: string; title: string }[];
+  articles: { id: string; title: string; order?: number }[];
+  dirs?: { path: string; order: number; title?: string }[];
   base: string;       // full URL base, no trailing slash (e.g. /ena-world/central-lab)
   currentId?: string;
   accent?: string;    // CSS value, e.g. 'var(--color-rust)'
   label?: string;     // optional header shown above the tree
 }
 
-const { articles, base, currentId, accent = 'var(--color-rust)', label } = Astro.props;
+const { articles, dirs = [], base, currentId, accent = 'var(--color-rust)', label } = Astro.props;
 
-type NavNode = { name: string; slug: string | null; title: string; children: NavNode[] };
+const dirMap = new Map(dirs.map(d => [d.path, { order: d.order, title: d.title }]));
 
-function buildTree(arts: { id: string; title: string }[]): NavNode[] {
+type NavNode = { name: string; slug: string | null; title: string; order: number; children: NavNode[] };
+
+function buildTree(arts: { id: string; title: string; order?: number }[]): NavNode[] {
   const root: NavNode[] = [];
-  function insert(level: NavNode[], parts: string[], d: number, slug: string, t: string) {
+
+  function insert(level: NavNode[], parts: string[], d: number, slug: string, t: string, order: number) {
     if (d === parts.length - 1) {
-      level.push({ name: parts[d], slug, title: t, children: [] });
+      level.push({ name: parts[d], slug, title: t, order, children: [] });
     } else {
+      const dirPath = parts.slice(0, d + 1).join('/');
       let dir = level.find(n => n.name === parts[d] && n.slug === null);
       if (!dir) {
-        dir = { name: parts[d], slug: null, title: '', children: [] };
+        const info = dirMap.get(dirPath);
+        dir = { name: parts[d], slug: null, title: info?.title ?? '', order: info?.order ?? 999, children: [] };
         level.push(dir);
       }
-      insert(dir.children, parts, d + 1, slug, t);
+      insert(dir.children, parts, d + 1, slug, t, order);
     }
   }
-  const sorted = [...arts].sort((a, b) => a.id.localeCompare(b.id));
-  for (const a of sorted) insert(root, a.id.split('/'), 0, a.id, a.title);
+
+  for (const a of arts) insert(root, a.id.split('/'), 0, a.id, a.title, a.order ?? 999);
+
+  function sortLevel(nodes: NavNode[]) {
+    nodes.sort((a, b) => a.order - b.order || a.name.localeCompare(b.name));
+    nodes.forEach(n => sortLevel(n.children));
+  }
+  sortLevel(root);
+
   return root;
 }
 
@@ -43,7 +56,7 @@ function renderTree(nodes: NavNode[], b: string, curId: string | undefined, dept
       const active = n.slug === curId ? ' nt-active' : '';
       h += `<li><a href="${b}/${encPath(n.slug)}" class="nt-link${active}">${esc(n.title)}</a></li>`;
     } else {
-      h += `<li><details open><summary class="nt-folder">${esc(fmt(n.name))}</summary>`;
+      h += `<li><details open><summary class="nt-folder">${esc(n.title || fmt(n.name))}</summary>`;
       h += renderTree(n.children, b, curId, depth + 1);
       h += `</details></li>`;
     }
@@ -53,6 +66,7 @@ function renderTree(nodes: NavNode[], b: string, curId: string | undefined, dept
 }
 
 const html = renderTree(buildTree(articles), base, currentId);
+
 ---
 
 <nav class="nt-root" style={`--nt-accent: ${accent}`}>

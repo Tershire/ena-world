@@ -7,13 +7,14 @@ interface Props {
   description?: string;
   date?: Date;
   tags?: string[];
-  navArticles?: { id: string; title: string }[];
+  navArticles?: { id: string; title: string; order?: number }[];
+  navDirs?: { path: string; order: number; title?: string }[];
   navBase?: string;
   navLabel?: string;
   currentId?: string;
 }
 
-const { title, description, date, tags = [], navArticles, navBase, navLabel = 'Aerospace Lab', currentId } = Astro.props;
+const { title, description, date, tags = [], navArticles, navDirs, navBase, navLabel = 'Aerospace Lab', currentId } = Astro.props;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const hasNav = navArticles && navArticles.length > 0 && navBase;
 ---
@@ -51,7 +52,7 @@ const hasNav = navArticles && navArticles.length > 0 && navBase;
     {hasNav && (
       <aside id="nav-sidebar">
         <div class="nav-sticky">
-          <NavTree articles={navArticles!} base={navBase!} currentId={currentId} accent="var(--color-sky)" label={navLabel} />
+          <NavTree articles={navArticles!} dirs={navDirs} base={navBase!} currentId={currentId} accent="var(--color-sky)" label={navLabel} />
         </div>
       </aside>
     )}

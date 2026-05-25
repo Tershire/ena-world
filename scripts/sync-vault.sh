@@ -36,10 +36,26 @@ sync_station() {
   mkdir -p "$dst"
   rsync -av --delete \
     --exclude=".*" \
+    --filter="protect _index.md" \
     --include="*/" \
     --include="*.md" \
     --exclude="*" \
     "${src}/" "${dst}/"
+
+  # Auto-create _index.md for any directory that doesn't have one yet
+  while IFS= read -r -d '' dir; do
+    local index_file="${dir}/_index.md"
+    if [[ ! -f "$index_file" ]]; then
+      local dirname
+      dirname=$(basename "$dir")
+      # Title: replace hyphens/underscores with spaces, title-case each word
+      local title
+      title=$(echo "$dirname" | tr '_-' '  ' | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2); print}')
+      printf -- '---\ntitle: %s\norder: 999\n---\n' "$title" > "$index_file"
+      echo "  [new]  _index.md: ${dir#"$dst/"}"
+    fi
+  done < <(find "$dst" -mindepth 1 -type d -print0)
+
   echo "  [ok]   ${station}"
 }
 
