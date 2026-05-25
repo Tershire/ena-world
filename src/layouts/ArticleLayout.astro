@@ -83,102 +83,108 @@ const hasNav = navArticles && navArticles.length > 0 && navBase;
 </BaseLayout>
 
 <script>
-  const bar     = document.getElementById('reading-bar')!;
-  const fill    = document.getElementById('progress-fill')!;
-  const pctEl   = document.getElementById('progress-pct')!;
-  const tocList = document.getElementById('toc-list')!;
+  document.addEventListener('astro:page-load', () => {
+    const ac = new AbortController();
+    const { signal } = ac;
+    document.addEventListener('astro:before-preparation', () => ac.abort(), { once: true });
 
-  const headings = Array.from(
-    document.querySelectorAll<HTMLHeadingElement>('.prose h2, .prose h3, .prose h4')
-  );
-  headings.forEach((h, i) => {
-    if (!h.id) h.id = `s${i}`;
-    const level = parseInt(h.tagName[1]);
+    const bar     = document.getElementById('reading-bar')!;
+    const fill    = document.getElementById('progress-fill')!;
+    const pctEl   = document.getElementById('progress-pct')!;
+    const tocList = document.getElementById('toc-list')!;
 
-    // Separator before "References"
-    if (h.textContent?.trim() === 'References') {
-      const sep = document.createElement('li');
-      sep.style.cssText = 'border-top:1px solid var(--color-sepia);margin:0.45rem 0 0.1rem;';
-      tocList.appendChild(sep);
-    }
+    const headings = Array.from(
+      document.querySelectorAll<HTMLHeadingElement>('.prose h2, .prose h3, .prose h4')
+    );
+    headings.forEach((h, i) => {
+      if (!h.id) h.id = `s${i}`;
+      const level = parseInt(h.tagName[1]);
 
-    const li = document.createElement('li');
-    const a  = document.createElement('a');
-    a.href = `#${h.id}`;
-    a.textContent = h.textContent;
-    a.style.cssText = `
-      display:block;
-      padding:0.28rem 0.5rem;
-      font-size:${level === 2 ? '0.8rem' : '0.74rem'};
-      font-weight:${level === 2 ? '500' : '400'};
-      color:var(--color-ink-faded);
-      text-decoration:none;
-      border-radius:0.3rem;
-      margin-left:${(level - 2) * 0.75}rem;
-      border-left:2px solid transparent;
-      line-height:1.4;
-      transition:color 0.1s, background 0.1s, border-color 0.1s;
-    `;
-    li.appendChild(a);
-    tocList.appendChild(li);
-  });
-
-  function onScroll() {
-    const max = document.documentElement.scrollHeight - window.innerHeight;
-    const pct = max > 0 ? Math.min((window.scrollY / max) * 100, 100) : 0;
-    bar.style.width   = `${pct}%`;
-    fill.style.width  = `${pct}%`;
-    pctEl.textContent = `${Math.round(pct)}%`;
-  }
-  window.addEventListener('scroll', onScroll, { passive: true });
-  onScroll();
-
-  const links = () => tocList.querySelectorAll<HTMLAnchorElement>('a');
-  const obs = new IntersectionObserver(
-    (entries) => {
-      for (const e of entries) {
-        if (!e.isIntersecting) continue;
-        links().forEach((a) => {
-          const active = a.getAttribute('href') === `#${e.target.id}`;
-          a.style.color           = active ? 'var(--color-rust)' : 'var(--color-ink-faded)';
-          a.style.fontWeight      = active ? '600' : (a.dataset.level === '2' ? '500' : '400');
-          a.style.borderLeftColor = active ? 'var(--color-rust)' : 'transparent';
-          a.style.background      = active ? 'rgba(139,58,42,0.07)' : '';
-        });
+      if (h.textContent?.trim() === 'References') {
+        const sep = document.createElement('li');
+        sep.style.cssText = 'border-top:1px solid var(--color-sepia);margin:0.45rem 0 0.1rem;';
+        tocList.appendChild(sep);
       }
-    },
-    { rootMargin: '-10% 0% -60% 0%' }
-  );
-  headings.forEach((h) => obs.observe(h));
 
-  // ── Citation tooltips ──────────────────────────────
-  const tooltip = document.createElement('div');
-  tooltip.className = 'cite-tooltip';
-  document.body.appendChild(tooltip);
-
-  // Build map: "1" → reference innerHTML
-  const refMap: Record<string, string> = {};
-  document.querySelectorAll<HTMLElement>('.references p').forEach((p) => {
-    const m = p.textContent?.match(/^\[(\d+)\]/);
-    if (m) refMap[m[1]] = p.innerHTML;
-  });
-
-  document.querySelectorAll<HTMLElement>('.cite').forEach((el) => {
-    el.addEventListener('mouseenter', () => {
-      const nums = (el.textContent ?? '').replace(/[\[\]\s]/g, '').split(',').filter(Boolean);
-      const html = nums.map(n => refMap[n]).filter(Boolean).join('<br>');
-      if (!html) return;
-      tooltip.innerHTML = html;
-      tooltip.style.display = 'block';
-      const rect = el.getBoundingClientRect();
-      const top  = rect.bottom + window.scrollY + 6;
-      const left = Math.min(rect.left + window.scrollX, window.innerWidth - tooltip.offsetWidth - 16);
-      tooltip.style.top  = `${top}px`;
-      tooltip.style.left = `${Math.max(8, left)}px`;
+      const li = document.createElement('li');
+      const a  = document.createElement('a');
+      a.href = `#${h.id}`;
+      a.textContent = h.textContent;
+      a.style.cssText = `
+        display:block;
+        padding:0.28rem 0.5rem;
+        font-size:${level === 2 ? '0.8rem' : '0.74rem'};
+        font-weight:${level === 2 ? '500' : '400'};
+        color:var(--color-ink-faded);
+        text-decoration:none;
+        border-radius:0.3rem;
+        margin-left:${(level - 2) * 0.75}rem;
+        border-left:2px solid transparent;
+        line-height:1.4;
+        transition:color 0.1s, background 0.1s, border-color 0.1s;
+      `;
+      li.appendChild(a);
+      tocList.appendChild(li);
     });
-    el.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
+
+    function onScroll() {
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      const pct = max > 0 ? Math.min((window.scrollY / max) * 100, 100) : 0;
+      bar.style.width   = `${pct}%`;
+      fill.style.width  = `${pct}%`;
+      pctEl.textContent = `${Math.round(pct)}%`;
+    }
+    window.addEventListener('scroll', onScroll, { passive: true, signal });
+    onScroll();
+
+    const links = () => tocList.querySelectorAll<HTMLAnchorElement>('a');
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (!e.isIntersecting) continue;
+          links().forEach((a) => {
+            const active = a.getAttribute('href') === `#${e.target.id}`;
+            a.style.color           = active ? 'var(--color-rust)' : 'var(--color-ink-faded)';
+            a.style.fontWeight      = active ? '600' : (a.dataset.level === '2' ? '500' : '400');
+            a.style.borderLeftColor = active ? 'var(--color-rust)' : 'transparent';
+            a.style.background      = active ? 'rgba(139,58,42,0.07)' : '';
+          });
+        }
+      },
+      { rootMargin: '-10% 0% -60% 0%' }
+    );
+    headings.forEach((h) => obs.observe(h));
+    signal.addEventListener('abort', () => obs.disconnect());
+
+    // ── Citation tooltips ──────────────────────────────
+    const tooltip = document.createElement('div');
+    tooltip.className = 'cite-tooltip';
+    document.body.appendChild(tooltip);
+    signal.addEventListener('abort', () => tooltip.remove());
+
+    const refMap: Record<string, string> = {};
+    document.querySelectorAll<HTMLElement>('.references p').forEach((p) => {
+      const m = p.textContent?.match(/^\[(\d+)\]/);
+      if (m) refMap[m[1]] = p.innerHTML;
+    });
+
+    document.querySelectorAll<HTMLElement>('.cite').forEach((el) => {
+      el.addEventListener('mouseenter', () => {
+        const nums = (el.textContent ?? '').replace(/[\[\]\s]/g, '').split(',').filter(Boolean);
+        const html = nums.map(n => refMap[n]).filter(Boolean).join('<br>');
+        if (!html) return;
+        tooltip.innerHTML = html;
+        tooltip.style.display = 'block';
+        const rect = el.getBoundingClientRect();
+        const top  = rect.bottom + window.scrollY + 6;
+        const left = Math.min(rect.left + window.scrollX, window.innerWidth - tooltip.offsetWidth - 16);
+        tooltip.style.top  = `${top}px`;
+        tooltip.style.left = `${Math.max(8, left)}px`;
+      }, { signal });
+      el.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; }, { signal });
+    });
+    window.addEventListener('scroll', () => { tooltip.style.display = 'none'; }, { passive: true, signal });
   });
-  window.addEventListener('scroll', () => { tooltip.style.display = 'none'; }, { passive: true });
 </script>
 
 <style>
@@ -227,6 +233,7 @@ const hasNav = navArticles && navArticles.length > 0 && navBase;
 
   .article-page {
     flex: 1;
+    width: 100%;
     display: grid;
     grid-template-columns: 1fr;
     max-width: 1160px;
@@ -295,8 +302,8 @@ const hasNav = navArticles && navArticles.length > 0 && navBase;
   #toc-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.05rem; }
 
   /* ── Article ──────────────────────────────────────── */
-  main { min-width: 0; }
-  .prose { max-width: 70ch; }
+  main { min-width: 0; width: 100%; }
+  .prose { width: 100%; }
 
   .article-header {
     margin-bottom: 3rem;

@@ -107,147 +107,121 @@ const hasNav = navArticles && navArticles.length > 0 && navBase;
 </BaseLayout>
 
 <script>
-  const imgDay    = document.getElementById('ocean-day')!   as HTMLImageElement;
-  const imgNight  = document.getElementById('ocean-night')! as HTMLImageElement;
-  const bar       = document.getElementById('reading-bar')!;
-  const fill      = document.getElementById('progress-fill')!;
-  const pctEl     = document.getElementById('progress-pct')!;
-  const tocList   = document.getElementById('toc-list')!;
-  const rulerLabels   = document.getElementById('ruler-labels')!;
-  const rulerLine2    = document.getElementById('ruler-line')!;
-  const rulerPip      = document.getElementById('ruler-pip')!;
-  const rulerReadout  = document.getElementById('ruler-readout')!;
-  const rulerNum      = document.getElementById('ruler-num')!;
-  const rulerZoneName = document.getElementById('ruler-zone-name')!;
+  document.addEventListener('astro:page-load', () => {
+    const ac = new AbortController();
+    const { signal } = ac;
+    document.addEventListener('astro:before-preparation', () => ac.abort(), { once: true });
 
-  // Day/night switching
-  function syncImages() {
-    const dark = document.documentElement.dataset.theme === 'dark';
-    imgDay.style.opacity   = dark ? '0' : '1';
-    imgNight.style.opacity = dark ? '1' : '0';
-  }
-  syncImages();
-  new MutationObserver(syncImages).observe(document.documentElement, {
-    attributes: true, attributeFilter: ['data-theme'],
+    const imgDay    = document.getElementById('ocean-day')!   as HTMLImageElement;
+    const imgNight  = document.getElementById('ocean-night')! as HTMLImageElement;
+    const bar       = document.getElementById('reading-bar')!;
+    const fill      = document.getElementById('progress-fill')!;
+    const pctEl     = document.getElementById('progress-pct')!;
+    const tocList   = document.getElementById('toc-list')!;
+    const rulerLabels   = document.getElementById('ruler-labels')!;
+    const rulerLine2    = document.getElementById('ruler-line')!;
+    const rulerPip      = document.getElementById('ruler-pip')!;
+    const rulerReadout  = document.getElementById('ruler-readout')!;
+    const rulerNum      = document.getElementById('ruler-num')!;
+    const rulerZoneName = document.getElementById('ruler-zone-name')!;
+
+    function syncImages() {
+      const dark = document.documentElement.dataset.theme === 'dark';
+      imgDay.style.opacity   = dark ? '0' : '1';
+      imgNight.style.opacity = dark ? '1' : '0';
+    }
+    syncImages();
+    const mo = new MutationObserver(syncImages);
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    signal.addEventListener('abort', () => mo.disconnect());
+
+    const MAX_DEPTH = 4000;
+    const zones = [
+      { name: 'Epipelagic',    minDepth: 0    },
+      { name: 'Mesopelagic',   minDepth: 200  },
+      { name: 'Bathypelagic',  minDepth: 1000 },
+      { name: 'Abyssopelagic', minDepth: 4000 },
+    ] as const;
+
+    zones.forEach((z) => {
+      const pct = (z.minDepth / MAX_DEPTH) * 100;
+      const label = document.createElement('div');
+      label.style.cssText = `
+        position: absolute; left: 6px; top: ${pct}%; transform: translateY(-50%);
+        font-size: 0.55rem; letter-spacing: 0.07em; text-transform: uppercase;
+        color: #ffffff; white-space: nowrap; text-align: left;
+      `;
+      label.textContent = z.name;
+      rulerLabels.appendChild(label);
+      const tick = document.createElement('div');
+      tick.style.cssText = `
+        position: absolute; top: ${pct}%; right: -4px; width: 10px; height: 1px;
+        background: rgba(255,255,255,0.55); transform: translateY(-50%);
+      `;
+      rulerLine2.appendChild(tick);
+    });
+
+    const headings = Array.from(
+      document.querySelectorAll<HTMLHeadingElement>('.prose h2, .prose h3, .prose h4')
+    );
+    headings.forEach((h, i) => {
+      if (!h.id) h.id = `s${i}`;
+      const level = parseInt(h.tagName[1]);
+      const li = document.createElement('li');
+      const a  = document.createElement('a');
+      a.href = `#${h.id}`;
+      a.textContent = h.textContent;
+      a.style.cssText = `
+        display:block; padding:0.28rem 0.5rem;
+        font-size:${level === 2 ? '0.8rem' : '0.74rem'};
+        font-weight:${level === 2 ? '500' : '400'};
+        color:var(--color-ink-faded); text-decoration:none; border-radius:0.3rem;
+        margin-left:${(level - 2) * 0.75}rem; border-left:2px solid transparent;
+        line-height:1.4; transition:color 0.1s, background 0.1s, border-color 0.1s;
+      `;
+      li.appendChild(a);
+      tocList.appendChild(li);
+    });
+
+    function onScroll() {
+      const max      = document.documentElement.scrollHeight - window.innerHeight;
+      const progress = max > 0 ? Math.min(window.scrollY / max, 1) : 0;
+      imgDay.style.objectPosition   = `center ${progress * 100}%`;
+      imgNight.style.objectPosition = `center ${progress * 100}%`;
+      const pct = progress * 100;
+      bar.style.width   = `${pct}%`;
+      fill.style.width  = `${pct}%`;
+      pctEl.textContent = `${Math.round(pct)}%`;
+      const depth = Math.round(progress * MAX_DEPTH);
+      rulerNum.textContent = depth.toLocaleString();
+      rulerPip.style.top     = `${pct}%`;
+      rulerReadout.style.top = `${pct}%`;
+      let zone = zones[0];
+      for (const z of zones) { if (depth >= z.minDepth) zone = z; }
+      rulerZoneName.textContent = zone.name;
+    }
+    window.addEventListener('scroll', onScroll, { passive: true, signal });
+    onScroll();
+
+    const links = () => tocList.querySelectorAll<HTMLAnchorElement>('a');
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (!e.isIntersecting) continue;
+          links().forEach((a) => {
+            const active = a.getAttribute('href') === `#${e.target.id}`;
+            a.style.color           = active ? 'var(--color-sky)' : 'var(--color-ink-faded)';
+            a.style.fontWeight      = active ? '600' : (a.style.fontSize === '0.8rem' ? '500' : '400');
+            a.style.borderLeftColor = active ? 'var(--color-sky)' : 'transparent';
+            a.style.background      = active ? 'rgba(58,107,139,0.10)' : '';
+          });
+        }
+      },
+      { rootMargin: '-10% 0% -60% 0%' }
+    );
+    headings.forEach((h) => obs.observe(h));
+    signal.addEventListener('abort', () => obs.disconnect());
   });
-
-  // Depth config
-  const MAX_DEPTH = 4000;
-  const zones = [
-    { name: 'Epipelagic',    minDepth: 0    },
-    { name: 'Mesopelagic',   minDepth: 200  },
-    { name: 'Bathypelagic',  minDepth: 1000 },
-    { name: 'Abyssopelagic', minDepth: 4000 },
-  ] as const;
-
-  // Build zone labels (RIGHT column) + tick marks on the line
-  zones.forEach((z) => {
-    const pct = (z.minDepth / MAX_DEPTH) * 100;
-
-    const label = document.createElement('div');
-    label.style.cssText = `
-      position: absolute;
-      left: 6px;
-      top: ${pct}%;
-      transform: translateY(-50%);
-      font-size: 0.55rem;
-      letter-spacing: 0.07em;
-      text-transform: uppercase;
-      color: #ffffff;
-      white-space: nowrap;
-      text-align: left;
-    `;
-    label.textContent = z.name;
-    rulerLabels.appendChild(label);
-
-    const tick = document.createElement('div');
-    tick.style.cssText = `
-      position: absolute;
-      top: ${pct}%;
-      right: -4px;
-      width: 10px;
-      height: 1px;
-      background: rgba(255,255,255,0.55);
-      transform: translateY(-50%);
-    `;
-    rulerLine2.appendChild(tick);
-  });
-
-  // Build TOC
-  const headings = Array.from(
-    document.querySelectorAll<HTMLHeadingElement>('.prose h2, .prose h3, .prose h4')
-  );
-  headings.forEach((h, i) => {
-    if (!h.id) h.id = `s${i}`;
-    const level = parseInt(h.tagName[1]);
-    const li = document.createElement('li');
-    const a  = document.createElement('a');
-    a.href = `#${h.id}`;
-    a.textContent = h.textContent;
-    a.style.cssText = `
-      display:block;
-      padding:0.28rem 0.5rem;
-      font-size:${level === 2 ? '0.8rem' : '0.74rem'};
-      font-weight:${level === 2 ? '500' : '400'};
-      color:var(--color-ink-faded);
-      text-decoration:none;
-      border-radius:0.3rem;
-      margin-left:${(level - 2) * 0.75}rem;
-      border-left:2px solid transparent;
-      line-height:1.4;
-      transition:color 0.1s, background 0.1s, border-color 0.1s;
-    `;
-    li.appendChild(a);
-    tocList.appendChild(li);
-  });
-
-  // Scroll handler
-  function onScroll() {
-    const max      = document.documentElement.scrollHeight - window.innerHeight;
-    const progress = max > 0 ? Math.min(window.scrollY / max, 1) : 0;
-
-    // Ocean image: surface → abyss
-    imgDay.style.objectPosition   = `center ${progress * 100}%`;
-    imgNight.style.objectPosition = `center ${progress * 100}%`;
-
-    // Progress bar
-    const pct = progress * 100;
-    bar.style.width   = `${pct}%`;
-    fill.style.width  = `${pct}%`;
-    pctEl.textContent = `${Math.round(pct)}%`;
-
-    // Depth ruler: pip and readout move together
-    const depth = Math.round(progress * MAX_DEPTH);
-    rulerNum.textContent = depth.toLocaleString();
-    rulerPip.style.top     = `${pct}%`;
-    rulerReadout.style.top = `${pct}%`;
-
-    let zone = zones[0];
-    for (const z of zones) { if (depth >= z.minDepth) zone = z; }
-    rulerZoneName.textContent = zone.name;
-  }
-
-  window.addEventListener('scroll', onScroll, { passive: true });
-  onScroll();
-
-  // Active heading
-  const links = () => tocList.querySelectorAll<HTMLAnchorElement>('a');
-  const obs = new IntersectionObserver(
-    (entries) => {
-      for (const e of entries) {
-        if (!e.isIntersecting) continue;
-        links().forEach((a) => {
-          const active = a.getAttribute('href') === `#${e.target.id}`;
-          a.style.color           = active ? 'var(--color-sky)' : 'var(--color-ink-faded)';
-          a.style.fontWeight      = active ? '600' : (a.style.fontSize === '0.8rem' ? '500' : '400');
-          a.style.borderLeftColor = active ? 'var(--color-sky)' : 'transparent';
-          a.style.background      = active ? 'rgba(58,107,139,0.10)' : '';
-        });
-      }
-    },
-    { rootMargin: '-10% 0% -60% 0%' }
-  );
-  headings.forEach((h) => obs.observe(h));
 </script>
 
 <style>
@@ -414,6 +388,7 @@ const hasNav = navArticles && navArticles.length > 0 && navBase;
   /* ── Page grid ────────────────────────────────────── */
   .article-page {
     flex: 1;
+    width: 100%;
     display: grid;
     grid-template-columns: 1fr;
     max-width: 1160px;

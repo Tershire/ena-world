@@ -73,14 +73,18 @@ const searchIndex = [
     <link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
     <ClientRouter />
-    <!-- Theme init: runs before paint to prevent flash -->
+    <!-- Theme init: runs before paint and after every view-transition swap -->
     <script is:inline>
       (function () {
-        try {
-          const saved = localStorage.getItem('ena-theme');
-          const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-          document.documentElement.dataset.theme = saved ?? (prefersDark ? 'dark' : 'light');
-        } catch (_) {}
+        function applyTheme() {
+          try {
+            const saved = localStorage.getItem('ena-theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            document.documentElement.dataset.theme = saved ?? (prefersDark ? 'dark' : 'light');
+          } catch (_) {}
+        }
+        applyTheme();
+        document.addEventListener('astro:after-swap', applyTheme);
       })();
     </script>
   </head>
