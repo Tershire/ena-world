@@ -7,6 +7,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { fileURLToPath } from 'url';
 import { remarkCitations } from './src/plugins/remark-citations.mjs';
+import { rehypeMathAlign } from './src/plugins/rehype-math-align.mjs';
 
 // https://astro.build/docs/guides/deploy/github/
 export default defineConfig({
@@ -36,6 +37,7 @@ export default defineConfig({
     ],
     rehypePlugins: [
       rehypeKatex,
+      rehypeMathAlign,
     ],
   },
 });

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { createNoise3D } from 'simplex-noise';
 
@@ -28,6 +28,16 @@ const STATIONS: Station[] = [
   { id: 'marine-lab',    label: 'Marine Lab',    href: '/marine-lab',    phi: 1.75, theta: -1.2, color: 0x5bc8e8 },
   { id: 'aerospace-lab', label: 'Aerospace Lab', href: '/aerospace-lab', phi: 0.85, theta: 2.0,  color: 0x90b8f0 },
 ];
+
+// ── Flat map constants ───────────────────────────────────
+const FLAT_W  = 1.40;  // half-width  (lon –π … π → –FLAT_W … FLAT_W)
+const FLAT_H  = 0.70;  // half-height (lat –π/2 … π/2 → –FLAT_H … FLAT_H)
+const GRID_R  = 1.025; // grid sphere radius
+// Transition timing (seconds)
+const T_GRID_IN  = 0.45;
+const T_MORPH    = 1.50;
+const T_GRID_OUT = 0.45;
+const T_TOTAL    = T_GRID_IN + T_MORPH + T_GRID_OUT; // 2.4 s
 
 // ── GLSL shaders (ocean only) ────────────────────────────
 const OCEAN_VERT = /* glsl */`
@@ -91,7 +101,6 @@ const AURORA_FRAG = /* glsl */`
   void main() {
     vec3 teal = vec3(0.00, 0.52, 0.82);
 
-    // ── Layer 1: green / teal — mid-altitude floating band ──
     float bcut1 = 0.18
       + sin(vAngle *  4.0 + uTime * 0.34) * 0.05
       + sin(vAngle * 10.0 - uTime * 0.26) * 0.03;
@@ -108,7 +117,6 @@ const AURORA_FRAG = /* glsl */`
     vec3  col1    = mix(vec3(0.05, 0.88, 0.42), teal, smoothstep(0.0, 0.6, vHeight));
     float a1      = fade1 * bright1 * uNight * 0.45;
 
-    // ── Layer 2: violet — separate lower floating band ──────
     float bcut2 = 0.14
       + sin(vAngle *  6.0 - uTime * 0.31 + 1.2) * 0.03
       + sin(vAngle * 12.0 + uTime * 0.22 + 2.7) * 0.02;
@@ -125,7 +133,6 @@ const AURORA_FRAG = /* glsl */`
     vec3  col2    = mix(vec3(0.65, 0.05, 0.85), vec3(0.82, 0.18, 0.62), smoothstep(0.1, 0.8, vHeight));
     float a2      = fade2 * bright2 * uNight * 0.35;
 
-    // Premultiplied additive output
     vec3 additive = col1 * a1 + col2 * a2;
     gl_FragColor = vec4(additive, 1.0);
   }
@@ -142,31 +149,26 @@ function stationUnitVec(s: Station): THREE.Vector3 {
 
 function buildTerrain() {
   const noise   = createNoise3D(seededRng(4271));
-  const rng     = seededRng(9913); // for tree placement
+  const rng     = seededRng(9913);
   const stationVecs = STATIONS.map(stationUnitVec);
 
-  // Volcano anchor (fixed position)
   const VP = new THREE.Vector3(0.55, 0.55, 0.62).normalize();
 
   function height(nx: number, ny: number, nz: number): number {
-    // Large continent-scale features dominate
     let h = 0;
     h += 0.60 * noise(nx * 1.6, ny * 1.6, nz * 1.6);
     h += 0.25 * noise(nx * 3.5, ny * 3.5, nz * 3.5);
     h += 0.10 * noise(nx * 8.0, ny * 8.0, nz * 8.0);
     h += 0.05 * noise(nx * 16., ny * 16., nz * 16.);
     h *= 0.20;
-    // Shift sea level up → ~65 % ocean
     h -= 0.055;
 
-    // Volcano (caldera dip at tip)
     const dv = nx * VP.x + ny * VP.y + nz * VP.z;
     if (dv > 0.93) {
       const d = 1 - dv;
       h += 0.22 * Math.exp(-d * 180) - 0.08 * Math.exp(-d * 3000);
     }
 
-    // Guarantee flat land platform at each station
     for (const sv of stationVecs) {
       const dot = nx * sv.x + ny * sv.y + nz * sv.z;
       if (dot > 0.958) {
@@ -179,42 +181,42 @@ function buildTerrain() {
   }
 
   function biomeColor(h: number, ny: number): THREE.Color {
-    const lat      = Math.abs(ny);         // 0 = equator, 1 = pole
+    const lat      = Math.abs(ny);
     const tropical = lat < 0.38;
     const polar    = lat > 0.76;
 
-    // ── Polar ice caps ──────────────────────────────
-    if (polar && h > -0.04) return new THREE.Color(0xe8f2f8); // ice sheet
-    if (polar && h > -0.10) return new THREE.Color(0xc8dce8); // sea ice fringe
+    if (polar && h > -0.04) return new THREE.Color(0xe8f2f8);
+    if (polar && h > -0.10) return new THREE.Color(0xc8dce8);
 
-    // ── Underwater seafloor (visible through transparent ocean) ─
-    if (h < -0.06) return new THREE.Color(0x2a3830); // dark rocky seabed
-    if (h < -0.01) return new THREE.Color(0xb89060); // sandy shallow seafloor
+    if (h < -0.06) return new THREE.Color(0x2a3830);
+    if (h < -0.01) return new THREE.Color(0xb89060);
 
-    // ── Coastline ───────────────────────────────────
-    if (tropical && h < 0.008) return new THREE.Color(0xf0c070); // coral / warm sand
-    if (h < 0.012) return new THREE.Color(0xe8d59a);              // beach sand
+    if (tropical && h < 0.008) return new THREE.Color(0xf0c070);
+    if (h < 0.012) return new THREE.Color(0xe8d59a);
 
-    // ── Land ────────────────────────────────────────
     if (tropical) {
-      if (h < 0.060) return new THREE.Color(0x52c228); // bright tropical grass
-      if (h < 0.120) return new THREE.Color(0x228818); // dense jungle
-      if (h < 0.180) return new THREE.Color(0x7a6040); // tropical highland
+      if (h < 0.060) return new THREE.Color(0x52c228);
+      if (h < 0.120) return new THREE.Color(0x228818);
+      if (h < 0.180) return new THREE.Color(0x7a6040);
     } else {
-      if (h < 0.060) return new THREE.Color(0x72b83e); // temperate grass
-      if (h < 0.120) return new THREE.Color(0x3d7a28); // forest
-      if (h < 0.180) return new THREE.Color(0x8b7355); // highland
+      if (h < 0.060) return new THREE.Color(0x72b83e);
+      if (h < 0.120) return new THREE.Color(0x3d7a28);
+      if (h < 0.180) return new THREE.Color(0x8b7355);
     }
-    if (h < 0.245) return new THREE.Color(0xb0a090); // mountain
-    return new THREE.Color(0xf0eee8);                  // snow cap
+    if (h < 0.245) return new THREE.Color(0xb0a090);
+    return new THREE.Color(0xf0eee8);
   }
 
   const SEG = 80;
   const geo = new THREE.SphereGeometry(1, SEG, SEG);
   const positions = geo.attributes.position;
   const colors: number[] = [];
-  const tempTreePos: THREE.Vector3[] = [];   // conifers / oaks
-  const palmTreePos: THREE.Vector3[] = [];   // tropical palms
+  const tempTreePos: THREE.Vector3[] = [];
+  const palmTreePos: THREE.Vector3[] = [];
+
+  // Flat map morph target buffers
+  const flatPositions = new Float32Array(positions.count * 3);
+  const flatNormals   = new Float32Array(positions.count * 3);
 
   for (let i = 0; i < positions.count; i++) {
     const x = positions.getX(i);
@@ -230,15 +232,22 @@ function buildTerrain() {
     positions.setXYZ(i, nx * r, ny * r, nz * r);
     colors.push(...biomeColor(h, ny).toArray());
 
+    // Equirectangular flat position from unit-sphere direction
+    const latR = Math.asin(Math.max(-1, Math.min(1, ny)));
+    const lonR = Math.atan2(nz, nx);
+    flatPositions[i*3]     = lonR / Math.PI * FLAT_W;
+    flatPositions[i*3 + 1] = latR / (Math.PI * 0.5) * FLAT_H;
+    flatPositions[i*3 + 2] = 0;
+    flatNormals[i*3]     = 0;
+    flatNormals[i*3 + 1] = 0;
+    flatNormals[i*3 + 2] = 1;
+
     const surfPt = new THREE.Vector3(nx * (r + 0.002), ny * (r + 0.002), nz * (r + 0.002));
     const rand   = rng();
 
-    // Tropical palms — dense jungle zone
     if (lat < 0.36 && h >= 0.018 && h < 0.130 && rand < 0.24) {
       palmTreePos.push(surfPt);
-    }
-    // Temperate trees — away from tropics and poles
-    else if (lat >= 0.36 && lat < 0.80 && h >= 0.020 && h < 0.145 && rand < 0.22) {
+    } else if (lat >= 0.36 && lat < 0.80 && h >= 0.020 && h < 0.145 && rand < 0.22) {
       tempTreePos.push(surfPt);
     }
   }
@@ -246,8 +255,83 @@ function buildTerrain() {
   geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(colors), 3));
   geo.computeVertexNormals();
 
+  // Add morph targets (r149+: auto-detected, no material flag needed)
+  geo.morphAttributes.position = [new THREE.BufferAttribute(flatPositions, 3)];
+  geo.morphAttributes.normal   = [new THREE.BufferAttribute(flatNormals,   3)];
+
   const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true }));
+  // morphTargetInfluences[0] initialized to 0 by Mesh constructor
   return { mesh, tempTreePos, palmTreePos, height };
+}
+
+// ── Grid ─────────────────────────────────────────────────
+function buildGrid(): {
+  lines: THREE.LineSegments;
+  spherePos: Float32Array;
+  flatPos: Float32Array;
+} {
+  const N = 64;
+  const parallels_deg = [-60, -30, 0, 30, 60];
+  const meridians_deg = Array.from({ length: 12 }, (_, i) => -180 + i * 30);
+
+  const sphPts: number[] = [];
+  const fltPts: number[] = [];
+
+  function seg(ax: number, ay: number, az: number, bx: number, by: number, bz: number,
+               fax: number, fay: number, fbx: number, fby: number) {
+    sphPts.push(ax, ay, az, bx, by, bz);
+    fltPts.push(fax, fay, 0.003, fbx, fby, 0.003);
+  }
+
+  for (const lat_deg of parallels_deg) {
+    const lat = lat_deg * Math.PI / 180;
+    const fy  = lat / (Math.PI * 0.5) * FLAT_H;
+    const cosLat = Math.cos(lat), sinLat = Math.sin(lat);
+    for (let i = 0; i < N; i++) {
+      const lon0 = (i / N) * 2 * Math.PI - Math.PI;
+      const lon1 = ((i + 1) / N) * 2 * Math.PI - Math.PI;
+      seg(
+        GRID_R * cosLat * Math.cos(lon0), GRID_R * sinLat, GRID_R * cosLat * Math.sin(lon0),
+        GRID_R * cosLat * Math.cos(lon1), GRID_R * sinLat, GRID_R * cosLat * Math.sin(lon1),
+        lon0 / Math.PI * FLAT_W, fy,
+        lon1 / Math.PI * FLAT_W, fy,
+      );
+    }
+  }
+
+  for (const lon_deg of meridians_deg) {
+    const lon = lon_deg * Math.PI / 180;
+    const fx  = lon / Math.PI * FLAT_W;
+    for (let i = 0; i < N; i++) {
+      const lat0 = (i / N) * Math.PI - Math.PI * 0.5;
+      const lat1 = ((i + 1) / N) * Math.PI - Math.PI * 0.5;
+      const c0 = Math.cos(lat0), s0 = Math.sin(lat0);
+      const c1 = Math.cos(lat1), s1 = Math.sin(lat1);
+      seg(
+        GRID_R * c0 * Math.cos(lon), GRID_R * s0, GRID_R * c0 * Math.sin(lon),
+        GRID_R * c1 * Math.cos(lon), GRID_R * s1, GRID_R * c1 * Math.sin(lon),
+        fx, lat0 / (Math.PI * 0.5) * FLAT_H,
+        fx, lat1 / (Math.PI * 0.5) * FLAT_H,
+      );
+    }
+  }
+
+  const spherePos = new Float32Array(sphPts);
+  const flatPos   = new Float32Array(fltPts);
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(spherePos.slice(), 3));
+
+  const mat = new THREE.LineBasicMaterial({
+    color: 0xffffff,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+  });
+  const lines = new THREE.LineSegments(geo, mat);
+  lines.renderOrder = 5;
+
+  return { lines, spherePos, flatPos };
 }
 
 // ── Tree helpers ─────────────────────────────────────────
@@ -289,7 +373,6 @@ function buildTemperateTrees(positions: THREE.Vector3[]): THREE.Group {
   return g;
 }
 
-// Minimal geometry merge (no external dep needed)
 function mergeGeos(geos: THREE.BufferGeometry[]): THREE.BufferGeometry {
   const pArr: number[] = [], nArr: number[] = [], idx: number[] = [];
   let base = 0;
@@ -312,31 +395,22 @@ function mergeGeos(geos: THREE.BufferGeometry[]): THREE.BufferGeometry {
 }
 
 function buildPalmTrees(positions: THREE.Vector3[]): THREE.Group {
-  // Trunk: tall thin cylinder (bottom at y=0, top at y=0.068)
   const trunkGeo = new THREE.CylinderGeometry(0.003, 0.005, 0.068, 5);
   trunkGeo.translate(0, 0.034, 0);
 
-  // 7 fronds: thin elongated box, each rotated around trunk tip
   const FROND_N = 7;
   const frondGeos: THREE.BufferGeometry[] = [];
   for (let i = 0; i < FROND_N; i++) {
     const angle = (i / FROND_N) * Math.PI * 2;
-    // Thin leaf: wide at base, tapers — approximate with BoxGeometry
     const leaf = new THREE.BoxGeometry(0.006, 0.003, 0.036);
-    // Offset tip downward to simulate droop
     const pos = leaf.attributes.position.array as Float32Array;
     for (let v = 0; v < pos.length / 3; v++) {
-      if (pos[v * 3 + 2] < 0) pos[v * 3 + 1] -= 0.007; // droop far end
+      if (pos[v * 3 + 2] < 0) pos[v * 3 + 1] -= 0.007;
     }
     leaf.attributes.position.needsUpdate = true;
-    leaf.rotateX(-Math.PI * 0.22);            // lean outward from vertical
+    leaf.rotateX(-Math.PI * 0.22);
     leaf.rotateY(angle);
-    // Offset from trunk centre outward
-    leaf.translate(
-      Math.sin(angle) * 0.010,
-      0.070,
-      Math.cos(angle) * 0.010,
-    );
+    leaf.translate(Math.sin(angle) * 0.010, 0.070, Math.cos(angle) * 0.010);
     frondGeos.push(leaf);
   }
   const frondGeo = mergeGeos(frondGeos);
@@ -363,21 +437,19 @@ function buildStation(
   const r      = 1.0 + Math.max(h, 0.010) + 0.003;
   const normal = sv.clone();
 
-  // Tangent frame (right = east-ish, forward = north-ish)
   const right   = new THREE.Vector3().crossVectors(normal, new THREE.Vector3(0, 1, 0)).normalize();
   const forward = new THREE.Vector3().crossVectors(right, normal).normalize();
   const up      = new THREE.Vector3(0, 1, 0);
   const quat    = new THREE.Quaternion().setFromUnitVectors(up, normal);
 
-  // Per-station appearance
-  const wallColor = s.id === 'central-lab'   ? 0xf2e6cc   // warm cream house
-                  : s.id === 'marine-lab'    ? 0xe8e8e0   // weathered white
-                  :                            0xd0cfc8;  // concrete grey
-  const roofColor = s.id === 'central-lab'   ? 0xa03828   // terracotta
-                  : s.id === 'marine-lab'    ? 0x2a4a60   // slate blue
-                  :                            0x484848;  // flat dark
-  const roofRatio = s.id === 'central-lab'   ? 0.72       // steep house gable
-                  : s.id === 'aerospace-lab' ? 0.18       // nearly flat
+  const wallColor = s.id === 'central-lab'   ? 0xf2e6cc
+                  : s.id === 'marine-lab'    ? 0xe8e8e0
+                  :                            0xd0cfc8;
+  const roofColor = s.id === 'central-lab'   ? 0xa03828
+                  : s.id === 'marine-lab'    ? 0x2a4a60
+                  :                            0x484848;
+  const roofRatio = s.id === 'central-lab'   ? 0.72
+                  : s.id === 'aerospace-lab' ? 0.18
                   :                            0.45;
 
   const wallMat = new THREE.MeshLambertMaterial({ color: wallColor });
@@ -401,13 +473,11 @@ function buildStation(
     group.add(roof);
   }
 
-  // Main cluster
   addBuilding(0.036, 0.030, 0.028,  0.000,  0.000);
   addBuilding(0.020, 0.020, 0.018,  0.030,  0.008);
   addBuilding(0.012, 0.038, 0.012, -0.024,  0.006);
   addBuilding(0.026, 0.015, 0.020,  0.004, -0.026);
 
-  // ── Central lab: chimney on main house ───────────────
   if (s.id === 'central-lab') {
     const chimneyGeo = new THREE.BoxGeometry(0.007, 0.018, 0.007);
     chimneyGeo.translate(0, 0.009, 0);
@@ -419,9 +489,7 @@ function buildStation(
     group.add(chimney);
   }
 
-  // ── Marine lab extras: lighthouse, harbour, submarine ─
   if (s.id === 'marine-lab') {
-    // Lighthouse
     const lhPos = normal.clone().multiplyScalar(r).addScaledVector(right, -0.036).addScaledVector(forward, 0.020);
     const lhBodyGeo = new THREE.CylinderGeometry(0.007, 0.009, 0.058, 8);
     lhBodyGeo.translate(0, 0.029, 0);
@@ -438,169 +506,126 @@ function buildStation(
     const lhCap = new THREE.Mesh(lhCapGeo, new THREE.MeshLambertMaterial({ color: 0x8a2820 }));
     lhCap.position.copy(lhPos); lhCap.quaternion.copy(quat); group.add(lhCap);
 
-    const dockMat = new THREE.MeshLambertMaterial({ color: 0x8b6840 }); // weathered wood
-    const subMat  = new THREE.MeshLambertMaterial({ color: 0x2a3a2a }); // dark military green
+    const dockMat = new THREE.MeshLambertMaterial({ color: 0x8b6840 });
+    const subMat  = new THREE.MeshLambertMaterial({ color: 0x2a3a2a });
 
-    // Pier: extends from shore (forward direction = toward ocean)
     const pierLen = 0.075;
     const pierGeo = new THREE.BoxGeometry(0.012, 0.004, pierLen);
     pierGeo.translate(0, 0.002, 0);
     const pier = new THREE.Mesh(pierGeo, dockMat);
     const pierPos = normal.clone().multiplyScalar(r)
-      .addScaledVector(forward, -pierLen / 2 - 0.018); // extends outward to sea
-    pier.position.copy(pierPos);
-    pier.quaternion.copy(quat);
-    group.add(pier);
+      .addScaledVector(forward, -pierLen / 2 - 0.018);
+    pier.position.copy(pierPos); pier.quaternion.copy(quat); group.add(pier);
 
-    // Cross-plank at pier end
     const crossGeo = new THREE.BoxGeometry(0.040, 0.004, 0.010);
     crossGeo.translate(0, 0.002, 0);
     const cross = new THREE.Mesh(crossGeo, dockMat);
-    const crossPos = normal.clone().multiplyScalar(r)
-      .addScaledVector(forward, -pierLen - 0.018);
-    cross.position.copy(crossPos);
-    cross.quaternion.copy(quat);
-    group.add(cross);
+    const crossPos = normal.clone().multiplyScalar(r).addScaledVector(forward, -pierLen - 0.018);
+    cross.position.copy(crossPos); cross.quaternion.copy(quat); group.add(cross);
 
-    // Mooring posts (4 small cylinders)
     const postGeo = new THREE.CylinderGeometry(0.003, 0.003, 0.010, 5);
     const postMat = new THREE.MeshLambertMaterial({ color: 0x5a4020 });
     [[-0.014, -0.035], [0.014, -0.035], [-0.014, -0.065], [0.014, -0.065]].forEach(([or, of]) => {
       const post = new THREE.Mesh(postGeo, postMat);
       const pPos = normal.clone().multiplyScalar(r + 0.005)
         .addScaledVector(right, or).addScaledVector(forward, of);
-      post.position.copy(pPos);
-      post.quaternion.copy(quat);
-      group.add(post);
+      post.position.copy(pPos); post.quaternion.copy(quat); group.add(post);
     });
 
-    // Submarine: CapsuleGeometry hull, oriented along `right` axis
     const subHullGeo = new THREE.CapsuleGeometry(0.013, 0.058, 6, 8);
-    subHullGeo.rotateZ(Math.PI / 2); // horizontal
+    subHullGeo.rotateZ(Math.PI / 2);
     const sub = new THREE.Mesh(subHullGeo, subMat);
-    // Float at sea level, beside pier end
-    const subR = 1.006; // just above ocean sphere
+    const subR = 1.006;
     const subPos = normal.clone().multiplyScalar(subR)
       .addScaledVector(right,   0.038)
       .addScaledVector(forward, -pierLen - 0.020);
-    sub.position.copy(subPos);
-    sub.quaternion.copy(quat);
-    group.add(sub);
+    sub.position.copy(subPos); sub.quaternion.copy(quat); group.add(sub);
 
-    // Conning tower
     const towerGeo = new THREE.BoxGeometry(0.012, 0.016, 0.010);
     towerGeo.translate(0, 0.020, 0);
     const tower = new THREE.Mesh(towerGeo, subMat);
-    tower.position.copy(subPos);
-    tower.quaternion.copy(quat);
-    group.add(tower);
+    tower.position.copy(subPos); tower.quaternion.copy(quat); group.add(tower);
   }
 
-  // ── Aerospace lab extras: runway, plane, launch pad, rocket, shuttle ──
   if (s.id === 'aerospace-lab') {
     const concreteMat = new THREE.MeshLambertMaterial({ color: 0xa0a0a0 });
     const gantryMat   = new THREE.MeshLambertMaterial({ color: 0xc07828 });
     const rocketMat   = new THREE.MeshLambertMaterial({ color: 0xf0ede8 });
     const shuttleMat  = new THREE.MeshLambertMaterial({ color: 0xf0ece4 });
 
-    // Runway — extends along `right`
     const runwayGeo = new THREE.BoxGeometry(0.140, 0.002, 0.018);
     runwayGeo.translate(0, 0.001, 0);
     const runway = new THREE.Mesh(runwayGeo, concreteMat);
     runway.position.copy(normal.clone().multiplyScalar(r).addScaledVector(right, 0.060));
-    runway.quaternion.copy(quat);
-    group.add(runway);
+    runway.quaternion.copy(quat); group.add(runway);
 
-    // Centerline stripe
     const lineGeo = new THREE.BoxGeometry(0.120, 0.0025, 0.003);
     lineGeo.translate(0, 0.001, 0);
     const line = new THREE.Mesh(lineGeo, new THREE.MeshLambertMaterial({ color: 0xffffff }));
     line.position.copy(normal.clone().multiplyScalar(r).addScaledVector(right, 0.060));
-    line.quaternion.copy(quat);
-    group.add(line);
+    line.quaternion.copy(quat); group.add(line);
 
-    // Launch pad
     const padPos = normal.clone().multiplyScalar(r)
       .addScaledVector(right, -0.055).addScaledVector(forward, -0.018);
 
     const slabGeo = new THREE.BoxGeometry(0.042, 0.002, 0.042);
     slabGeo.translate(0, 0.001, 0);
     const slab = new THREE.Mesh(slabGeo, concreteMat);
-    slab.position.copy(padPos);
-    slab.quaternion.copy(quat);
-    group.add(slab);
+    slab.position.copy(padPos); slab.quaternion.copy(quat); group.add(slab);
 
-    // Gantry tower + arm
     const towerH = 0.090;
     const towerGeo = new THREE.BoxGeometry(0.005, towerH, 0.005);
     towerGeo.translate(0, towerH / 2, 0);
     const towerPos = padPos.clone().addScaledVector(right, -0.015).addScaledVector(forward, -0.015);
     const gantry = new THREE.Mesh(towerGeo, gantryMat);
-    gantry.position.copy(towerPos);
-    gantry.quaternion.copy(quat);
-    group.add(gantry);
+    gantry.position.copy(towerPos); gantry.quaternion.copy(quat); group.add(gantry);
 
     const armGeo = new THREE.BoxGeometry(0.030, 0.004, 0.004);
     const arm = new THREE.Mesh(armGeo, gantryMat);
     arm.position.copy(towerPos.clone().addScaledVector(normal, towerH * 0.82));
-    arm.quaternion.copy(quat);
-    group.add(arm);
+    arm.quaternion.copy(quat); group.add(arm);
 
-    // Rocket on pad
     const rocketH = 0.078;
     const rocketGeo = new THREE.CapsuleGeometry(0.008, rocketH, 4, 8);
     rocketGeo.translate(0, rocketH / 2 + 0.008, 0);
     const rocket = new THREE.Mesh(rocketGeo, rocketMat);
-    rocket.position.copy(padPos);
-    rocket.quaternion.copy(quat);
-    group.add(rocket);
+    rocket.position.copy(padPos); rocket.quaternion.copy(quat); group.add(rocket);
 
-    // Side boosters
     const boosterMat = new THREE.MeshLambertMaterial({ color: 0xe0d8c8 });
     [-1, 1].forEach((side) => {
       const bGeo = new THREE.CapsuleGeometry(0.004, 0.048, 4, 6);
       bGeo.translate(0, 0.048 / 2 + 0.006, 0);
       const booster = new THREE.Mesh(bGeo, boosterMat);
       booster.position.copy(padPos.clone().addScaledVector(right, side * 0.013));
-      booster.quaternion.copy(quat);
-      group.add(booster);
+      booster.quaternion.copy(quat); group.add(booster);
     });
 
-    // Space shuttle (parked on apron)
     const shuttlePos = normal.clone().multiplyScalar(r + 0.008)
       .addScaledVector(right, 0.060).addScaledVector(forward, -0.038);
 
     const sFuseGeo = new THREE.CapsuleGeometry(0.008, 0.040, 4, 8);
     sFuseGeo.rotateZ(Math.PI / 2);
     const sFuse = new THREE.Mesh(sFuseGeo, shuttleMat);
-    sFuse.position.copy(shuttlePos);
-    sFuse.quaternion.copy(quat);
-    group.add(sFuse);
+    sFuse.position.copy(shuttlePos); sFuse.quaternion.copy(quat); group.add(sFuse);
 
-    // Delta wings (left + right)
     [-1, 1].forEach((side) => {
       const dwGeo = new THREE.BoxGeometry(0.030, 0.002, 0.022);
       dwGeo.translate(side * 0.024, 0, 0);
       const dw = new THREE.Mesh(dwGeo, shuttleMat);
-      dw.position.copy(shuttlePos);
-      dw.quaternion.copy(quat);
-      group.add(dw);
+      dw.position.copy(shuttlePos); dw.quaternion.copy(quat); group.add(dw);
     });
 
-    // Shuttle vertical stabilizer
     const sVStabGeo = new THREE.BoxGeometry(0.002, 0.014, 0.018);
     sVStabGeo.translate(0, 0.007, 0);
     const sVStab = new THREE.Mesh(sVStabGeo, shuttleMat);
     sVStab.position.copy(shuttlePos.clone().addScaledVector(right, -0.020));
-    sVStab.quaternion.copy(quat);
-    group.add(sVStab);
+    sVStab.quaternion.copy(quat); group.add(sVStab);
   }
 
   return { group, emissiveMats };
 }
 
 // ── Wildlife helpers ─────────────────────────────────────
-
 function initTangentDir(pos: THREE.Vector3): THREE.Vector3 {
   const ref = Math.abs(pos.y) < 0.9
     ? new THREE.Vector3(0, 1, 0)
@@ -681,43 +706,29 @@ function buildDolphin(): { group: THREE.Group; tail: THREE.Group } {
   const g   = new THREE.Group();
   const mat = new THREE.MeshLambertMaterial({ color: 0x5a8aaa });
 
-  // Body — capsule length along +Z (nose) / -Z (tail)
   const bodyGeo = new THREE.CapsuleGeometry(0.008, 0.036, 4, 8);
   bodyGeo.rotateX(Math.PI / 2);
   g.add(new THREE.Mesh(bodyGeo, mat));
 
-  // Rostrum (beak/snout) — short tapered box at nose tip
   const rostrumGeo = new THREE.BoxGeometry(0.005, 0.004, 0.008);
   rostrumGeo.translate(0, 0.001, 0.030);
   g.add(new THREE.Mesh(rostrumGeo, mat));
 
-  // Dorsal fin — triangular blade (YZ plane, thin in X)
   g.add(new THREE.Mesh(makeFinPrism(
-    [0, 0.008,  0.004],   // base front
-    [0, 0.008, -0.008],   // base rear
-    [0, 0.018, -0.001],   // swept tip
-    [0.0015, 0, 0],
+    [0, 0.008,  0.004], [0, 0.008, -0.008], [0, 0.018, -0.001], [0.0015, 0, 0],
   ), mat));
 
-  // Pectoral fins — triangular flippers (XZ plane, thin in Y)
   [-1, 1].forEach((s) => {
     g.add(new THREE.Mesh(makeFinPrism(
-      [s*0.008, -0.001,  0.011],  // base front
-      [s*0.008, -0.001,  0.002],  // base rear
-      [s*0.019, -0.003,  0.005],  // swept tip
-      [0, 0.001, 0],
+      [s*0.008, -0.001,  0.011], [s*0.008, -0.001,  0.002], [s*0.019, -0.003,  0.005], [0, 0.001, 0],
     ), mat));
   });
 
-  // Tail pivot group — tapered flukes flap up/down
   const tail = new THREE.Group();
   tail.position.set(0, 0, -0.020);
   [-1, 1].forEach((s) => {
     tail.add(new THREE.Mesh(makeFinPrism(
-      [s*0.001,  0,  0.002],   // inner front
-      [s*0.002,  0, -0.010],   // inner rear
-      [s*0.020,  0, -0.007],   // wide swept tip
-      [0, 0.0014, 0],
+      [s*0.001,  0,  0.002], [s*0.002,  0, -0.010], [s*0.020,  0, -0.007], [0, 0.0014, 0],
     ), mat));
   });
   g.add(tail);
@@ -727,10 +738,10 @@ function buildDolphin(): { group: THREE.Group; tail: THREE.Group } {
 
 // ── Aurora crown geometry ────────────────────────────────
 function buildAuroraCrown(): THREE.BufferGeometry {
-  const N      = 96;   // segments around each ring
-  const LAT_Y  = 0.88; // unit-sphere y of aurora base (~62° latitude)
-  const R_BASE = 1.02; // inner radius — just above surface
-  const R_TOP  = 1.46; // outer radius — top of tallest spike
+  const N      = 96;
+  const LAT_Y  = 0.88;
+  const R_BASE = 1.02;
+  const R_TOP  = 1.46;
 
   const r_ring = Math.sqrt(1 - LAT_Y * LAT_Y);
   const positions: number[] = [];
@@ -747,10 +758,8 @@ function buildAuroraCrown(): THREE.BufferGeometry {
       const nx = r_ring * Math.cos(a);
       const nz = r_ring * Math.sin(a);
 
-      // Bottom vertex (near surface)
       positions.push(nx * R_BASE, yF * R_BASE, nz * R_BASE);
       angles.push(a); heights.push(0);
-      // Top vertex (outer limit of spike)
       positions.push(nx * R_TOP, yF * R_TOP, nz * R_TOP);
       angles.push(a); heights.push(1);
     }
@@ -788,25 +797,20 @@ function buildAnimatedPlane(): {
   const metalMat = new THREE.MeshLambertMaterial({ color: 0xd0d8e0 });
   const windowMats: THREE.MeshLambertMaterial[] = [];
 
-  // Fuselage — fatter radius (0.009) and longer (0.056), length along +Z (forward)
   const fuseGeo = new THREE.CapsuleGeometry(0.009, 0.056, 4, 8);
   fuseGeo.rotateX(Math.PI / 2);
   g.add(new THREE.Mesh(fuseGeo, metalMat));
 
-  // Main wings — higher aspect ratio: wider span, narrower chord
   g.add(new THREE.Mesh(new THREE.BoxGeometry(0.080, 0.002, 0.012), metalMat));
 
-  // Horizontal stabilizer at tail
   const hStab = new THREE.BoxGeometry(0.038, 0.002, 0.009);
   hStab.translate(0, 0, -0.034);
   g.add(new THREE.Mesh(hStab, metalMat));
 
-  // Vertical fin
   const vFin = new THREE.BoxGeometry(0.002, 0.018, 0.014);
   vFin.translate(0, 0.009, -0.032);
   g.add(new THREE.Mesh(vFin, metalMat));
 
-  // Windows — 5 per side (front 1 and rear 2 removed), spacing slightly widened
   for (const side of [-1, 1]) {
     for (let wi = 0; wi < 5; wi++) {
       const wGeo = new THREE.BoxGeometry(0.0014, 0.0026, 0.0030);
@@ -821,20 +825,11 @@ function buildAnimatedPlane(): {
     }
   }
 
-  // Navigation lights — sd = cross(up,fwd) points port (left), so:
-  // starboard (right) = −sd = −X  → green
-  // port (left)       = +sd = +X  → red
   const navGeo = new THREE.SphereGeometry(0.0028, 4, 4);
-  const navGreen = new THREE.Mesh(
-    navGeo,
-    new THREE.MeshBasicMaterial({ color: 0x00ee44, transparent: true }),
-  );
-  navGreen.position.set(-0.040, 0, 0); // starboard (right wing)
-  const navRed = new THREE.Mesh(
-    navGeo.clone(),
-    new THREE.MeshBasicMaterial({ color: 0xff2222, transparent: true }),
-  );
-  navRed.position.set(0.040, 0, 0); // port (left wing)
+  const navGreen = new THREE.Mesh(navGeo, new THREE.MeshBasicMaterial({ color: 0x00ee44, transparent: true }));
+  navGreen.position.set(-0.040, 0, 0);
+  const navRed = new THREE.Mesh(navGeo.clone(), new THREE.MeshBasicMaterial({ color: 0xff2222, transparent: true }));
+  navRed.position.set(0.040, 0, 0);
   g.add(navGreen, navRed);
 
   return { group: g, windowMats, navGreen, navRed };
@@ -848,7 +843,6 @@ const STAR_VERT = /* glsl */`
   varying float vBrightness;
 
   void main() {
-    // Each star twinkles at its own rate and phase
     vBrightness = 0.35 + 0.65 * abs(sin(uTime * aSpeed + aPhase));
     vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
     gl_PointSize = 78.0 / -mvPosition.z;
@@ -863,7 +857,6 @@ const STAR_FRAG = /* glsl */`
     vec2 uv = gl_PointCoord - 0.5;
     float r = length(uv);
     if (r > 0.5) discard;
-    // Soft circular falloff * twinkle brightness
     float alpha = (0.5 - r) * 2.0 * vBrightness;
     gl_FragColor = vec4(1.0, 0.97, 0.91, alpha);
   }
@@ -880,7 +873,6 @@ function buildStars(): { points: THREE.Points; uniforms: { uTime: { value: numbe
     pos[i * 3 + 1] = (Math.random() - 0.5) * 90;
     pos[i * 3 + 2] = (Math.random() - 0.5) * 90;
     phase[i] = Math.random() * Math.PI * 2;
-    // Mix of slow (0.3) and fast (2.5) twinklers
     speed[i] = 0.3 + Math.random() * 2.2;
   }
 
@@ -904,6 +896,18 @@ function buildStars(): { points: THREE.Points; uniforms: { uTime: { value: numbe
 // ── Main component ───────────────────────────────────────
 export default function PlanetGlobe({ base }: { base: string }) {
   const mountRef = useRef<HTMLDivElement>(null);
+
+  // Shared refs for button ↔ animation loop communication
+  const mapModeRef     = useRef<'globe' | 'map'>('globe');
+  const transActiveRef = useRef(false);
+  const [mapModeDisplay, setMapModeDisplay] = useState<'globe' | 'map'>('globe');
+
+  const toggleMap = useCallback(() => {
+    if (transActiveRef.current) return;
+    const next = mapModeRef.current === 'globe' ? 'map' : 'globe';
+    mapModeRef.current = next;
+    setMapModeDisplay(next);
+  }, []);
 
   useEffect(() => {
     const el = mountRef.current;
@@ -976,25 +980,38 @@ export default function PlanetGlobe({ base }: { base: string }) {
     aurora.renderOrder = 3;
     scene.add(aurora);
 
-    // ── Trees & coral ─────────────────────────────────
+    // ── Trees ─────────────────────────────────────────
     const tempTrees = buildTemperateTrees(tempTreePos);
     const palmTrees = buildPalmTrees(palmTreePos);
     scene.add(tempTrees, palmTrees);
 
+    // ── Atmosphere ────────────────────────────────────
+    const atm1 = new THREE.Mesh(
+      new THREE.SphereGeometry(1.13, 32, 32),
+      new THREE.MeshBasicMaterial({ color: 0x99ccff, transparent: true, opacity: 0.07, side: THREE.BackSide, depthWrite: false })
+    );
+    const atm2 = new THREE.Mesh(
+      new THREE.SphereGeometry(1.06, 32, 32),
+      new THREE.MeshBasicMaterial({ color: 0xbbddff, transparent: true, opacity: 0.05, depthWrite: false })
+    );
+    scene.add(atm1, atm2);
+
+    // ── Grid ──────────────────────────────────────────
+    const { lines: gridLines, spherePos: gridSpherePos, flatPos: gridFlatPos } = buildGrid();
+    scene.add(gridLines);
+    const gridPosBuf = gridLines.geometry.attributes.position as THREE.BufferAttribute;
+
     // ── Dark mode setup ───────────────────────────────
-    // Collect all tintable materials (terrain + trees) with their original colors
     const nightTintFactor = new THREE.Color(0.22, 0.25, 0.36);
     interface TintEntry { mat: THREE.MeshLambertMaterial; day: THREE.Color; night: THREE.Color }
     const tintEntries: TintEntry[] = [];
-    const _tintColor = new THREE.Color(); // scratch
+    const _tintColor = new THREE.Color();
 
-    // Terrain uses vertex colors; material.color multiplies them (default white = no tint)
     tintEntries.push({
       mat: terrainMesh.material as THREE.MeshLambertMaterial,
       day: new THREE.Color(1, 1, 1),
       night: new THREE.Color(nightTintFactor),
     });
-    // Trees: save original + compute darkened version
     [tempTrees, palmTrees].forEach((group) => {
       group.traverse((obj) => {
         if (!(obj instanceof THREE.InstancedMesh)) return;
@@ -1004,19 +1021,18 @@ export default function PlanetGlobe({ base }: { base: string }) {
       });
     });
 
-    // Day/night light configs (Color objects, reused each frame)
     const daySunCol  = new THREE.Color(0xfff0d0);  const nightSunCol  = new THREE.Color(0xaabbee);
     const dayAmbCol  = new THREE.Color(0x445566);  const nightAmbCol  = new THREE.Color(0x05090f);
     const dayFillCol = new THREE.Color(0xaaccff);  const nightFillCol = new THREE.Color(0x0d1a35);
 
     let darkTarget = document.documentElement.dataset.theme === 'dark' ? 1.0 : 0.0;
-    let darkBlend  = darkTarget; // start at final value to avoid flash on load
+    let darkBlend  = darkTarget;
 
     new MutationObserver(() => {
       darkTarget = document.documentElement.dataset.theme === 'dark' ? 1.0 : 0.0;
     }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
-    // ── Research station buildings ─────────────────
+    // ── Station buildings ──────────────────────────
     const stationGroups: THREE.Group[] = [];
     const stationLights: THREE.PointLight[] = [];
     const stationEmissiveMats: THREE.MeshLambertMaterial[] = [];
@@ -1036,18 +1052,17 @@ export default function PlanetGlobe({ base }: { base: string }) {
       stationLights.push(light);
     });
 
-    // ── Animated airplane (Aerospace Lab) ─────────────
+    // ── Animated airplane ──────────────────────────
     const aeroStation = STATIONS.find(s => s.id === 'aerospace-lab')!;
     const aeroVec     = stationUnitVec(aeroStation);
     const aeroRight   = new THREE.Vector3().crossVectors(aeroVec, new THREE.Vector3(0, 1, 0)).normalize();
     const aeroH       = getHeight(aeroVec.x, aeroVec.y, aeroVec.z);
     const planeParkR  = 1.0 + Math.max(aeroH, 0.010) + 0.012;
-    const ORBIT_SPEED_VAL = (Math.PI * 2) / 35; // one orbit in 35 s
+    const ORBIT_SPEED_VAL = (Math.PI * 2) / 35;
     const ORBIT_ALT       = 0.10;
     const TAKEOFF_SPAN    = 0.40;
     const PLANE_WAIT      = 8.0;
 
-    // Precompute parked orientation quaternion (constant in planet-local frame)
     const _pSide = new THREE.Vector3().crossVectors(aeroVec, aeroRight).normalize();
     const _pFwdO = new THREE.Vector3().crossVectors(_pSide, aeroVec).normalize();
     const planeParkQ = new THREE.Quaternion().setFromRotationMatrix(
@@ -1059,9 +1074,9 @@ export default function PlanetGlobe({ base }: { base: string }) {
 
     let planePhase: 'parked' | 'flying' = 'parked';
     let planeOrbitAngle = 0;
-    let planeWaitTimer  = 5.0; // initial delay before first takeoff
+    let planeWaitTimer  = 5.0;
 
-    // ── Wildlife ──────────────────────────────────────
+    // ── Wildlife ──────────────────────────────────
     interface ParrotState {
       pos: THREE.Vector3; dir: THREE.Vector3;
       group: THREE.Group; lWing: THREE.Mesh; rWing: THREE.Mesh;
@@ -1098,19 +1113,7 @@ export default function PlanetGlobe({ base }: { base: string }) {
                wanderAngle: 0, seed: i * 2.7 };
     });
 
-    // ── Atmosphere ────────────────────────────────────
-    const atm1 = new THREE.Mesh(
-      new THREE.SphereGeometry(1.13, 32, 32),
-      new THREE.MeshBasicMaterial({ color: 0x99ccff, transparent: true, opacity: 0.07, side: THREE.BackSide, depthWrite: false })
-    );
-    const atm2 = new THREE.Mesh(
-      new THREE.SphereGeometry(1.06, 32, 32),
-      new THREE.MeshBasicMaterial({ color: 0xbbddff, transparent: true, opacity: 0.05, depthWrite: false })
-    );
-    scene.add(atm1, atm2);
-
-    // ── Station raycasting pins ────────────────────
-    // Invisible hit-test spheres at each station
+    // ── Station raycasting ─────────────────────────
     const pinGeo = new THREE.SphereGeometry(0.06, 8, 8);
     const pinMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 });
     const pinMeshes: THREE.Mesh[] = STATIONS.map((s) => {
@@ -1124,7 +1127,6 @@ export default function PlanetGlobe({ base }: { base: string }) {
       return pin;
     });
 
-    // Visible glowing orbs at each station
     const orbGeo = new THREE.SphereGeometry(0.016, 10, 10);
     const orbs: THREE.Mesh[] = STATIONS.map((s, i) => {
       const orbMat = new THREE.MeshBasicMaterial({ color: s.color });
@@ -1134,7 +1136,7 @@ export default function PlanetGlobe({ base }: { base: string }) {
       return orb;
     });
 
-    // ── Tooltip ───────────────────────────────────────
+    // ── Tooltip ───────────────────────────────────
     const tooltip = document.createElement('div');
     tooltip.style.cssText = `
       position:fixed; pointer-events:none; z-index:200;
@@ -1147,7 +1149,7 @@ export default function PlanetGlobe({ base }: { base: string }) {
     `;
     document.body.appendChild(tooltip);
 
-    // ── Raycasting ────────────────────────────────────
+    // ── Raycasting ────────────────────────────────
     const raycaster = new THREE.Raycaster();
     const pointer   = new THREE.Vector2();
 
@@ -1158,7 +1160,7 @@ export default function PlanetGlobe({ base }: { base: string }) {
     }
 
     function onMove(e: PointerEvent) {
-      if (dragging) return;
+      if (dragging || mapModeRef.current === 'map' || transActiveRef.current) return;
       toNDC(e);
       raycaster.setFromCamera(pointer, camera);
       const hits = raycaster.intersectObjects(pinMeshes);
@@ -1176,7 +1178,7 @@ export default function PlanetGlobe({ base }: { base: string }) {
     }
 
     function onClick(e: PointerEvent) {
-      if (dragMoved) return;
+      if (dragMoved || mapModeRef.current === 'map' || transActiveRef.current) return;
       toNDC(e);
       raycaster.setFromCamera(pointer, camera);
       const hits = raycaster.intersectObjects(pinMeshes);
@@ -1189,13 +1191,18 @@ export default function PlanetGlobe({ base }: { base: string }) {
     el.addEventListener('pointermove', onMove);
     el.addEventListener('click', onClick as EventListener);
 
-    // ── Drag rotation ─────────────────────────────────
+    // ── Drag rotation ─────────────────────────────
     let dragging = false, dragMoved = false;
     let lastX = 0, lastY = 0;
     let velX = 0, velY = 0;
-    let rotY = 0, rotX = 0;
+
+    // Initial rotation: centers Central Lab (phi=1.35, theta=0.5) toward camera
+    // rotX ≈ atan(ny/nz), rotY ≈ atan2(-nx, nz_after_rotX)
+    let rotY = -1.029;
+    let rotX =  0.438;
 
     el.addEventListener('pointerdown', (e) => {
+      if (mapModeRef.current === 'map' || transActiveRef.current) return;
       dragging = true; dragMoved = false;
       lastX = e.clientX; lastY = e.clientY;
       velX = velY = 0;
@@ -1213,7 +1220,7 @@ export default function PlanetGlobe({ base }: { base: string }) {
       lastX = e.clientX; lastY = e.clientY;
     });
 
-    // ── Resize ────────────────────────────────────────
+    // ── Resize ────────────────────────────────────
     const onResize = () => {
       camera.aspect = el.clientWidth / el.clientHeight;
       camera.updateProjectionMatrix();
@@ -1221,12 +1228,58 @@ export default function PlanetGlobe({ base }: { base: string }) {
     };
     window.addEventListener('resize', onResize);
 
-    // ── Animation loop ────────────────────────────────
+    // ── Map transition state ───────────────────────
+    let prevMapMode: 'globe' | 'map' = 'globe';
+    let transDir    = 1;    // +1 = going to map, -1 = going to globe
+    let transElapsed = 0;
+    let mapBlend    = 0;    // 0 = globe, 1 = flat  (current rendered value)
+    let savedRotX   = rotX;
+    let savedRotY   = rotY;
+
+    // "Secondary" mesh visibility (ocean, trees, buildings, aurora, atm)
+    // they fade out while going to map and fade in while going to globe
+    const secondaryMeshes: THREE.Object3D[] = [
+      ocean, aurora, atm1, atm2, tempTrees, palmTrees,
+      ...stationGroups, planeGroup,
+      ...parrots.map(p => p.group),
+      ...dolphins.map(d => d.group),
+    ];
+    let secondaryOpacity = 1; // 0 = hidden, 1 = visible
+
+    function setSecondaryOpacity(alpha: number) {
+      secondaryOpacity = alpha;
+      // ocean uses ShaderMaterial — opacity property has no effect, use visible
+      ocean.visible = alpha > 0.01;
+      [atm1, atm2].forEach(m => {
+        (m.material as THREE.MeshBasicMaterial).opacity = alpha *
+          (m === atm1 ? 0.07 : 0.05);
+      });
+      aurora.visible = alpha > 0.01;
+      [tempTrees, palmTrees].forEach(g => {
+        g.traverse(obj => {
+          if (obj instanceof THREE.InstancedMesh) {
+            obj.visible = alpha > 0.01;
+          }
+        });
+      });
+      stationGroups.forEach(g => { g.visible = alpha > 0.01; });
+      planeGroup.visible = alpha > 0.01;
+      parrots.forEach(p => { p.group.visible = alpha > 0.01; });
+      dolphins.forEach(d => { d.group.visible = alpha > 0.01; });
+      orbs.forEach(orb => { orb.visible = alpha > 0.01; });
+      pinMeshes.forEach(pin => { pin.visible = alpha > 0.01; });
+    }
+
+    // ── Animation loop ────────────────────────────
     let raf: number;
     const t0 = performance.now();
     const euler = new THREE.Euler();
     let prevT = 0;
     const planetQuat = new THREE.Quaternion();
+
+    function easeInOut(t: number): number {
+      return t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
+    }
 
     function animate() {
       raf = requestAnimationFrame(animate);
@@ -1237,12 +1290,90 @@ export default function PlanetGlobe({ base }: { base: string }) {
       auroraUniforms.uTime.value = t;
       starUniforms.uTime.value   = t;
 
-      // ── Dark mode blend ──────────────────────────────
-      darkBlend += (darkTarget - darkBlend) * 0.04; // ~0.5 s transition at 60 fps
+      // ── Map mode transition detection ─────────────
+      const currentMapMode = mapModeRef.current;
+      if (currentMapMode !== prevMapMode) {
+        prevMapMode = currentMapMode;
+        transDir    = currentMapMode === 'map' ? 1 : -1;
+        transElapsed = 0;
+        transActiveRef.current = true;
+        if (transDir === 1) {
+          // Going to map: save current rotation
+          savedRotX = rotX;
+          savedRotY = rotY;
+          velX = velY = 0;
+        }
+      }
+
+      // ── Transition update ─────────────────────────
+      if (transActiveRef.current) {
+        transElapsed += dt;
+        const tNorm = Math.min(transElapsed / T_TOTAL, 1);
+
+        // Grid opacity: in for first segment, out for last segment
+        let gridOpacity: number;
+        const tIn  = T_GRID_IN / T_TOTAL;
+        const tOut = (T_GRID_IN + T_MORPH) / T_TOTAL;
+        if (tNorm < tIn) {
+          gridOpacity = easeInOut(tNorm / tIn);
+        } else if (tNorm < tOut) {
+          gridOpacity = 1;
+        } else {
+          gridOpacity = easeInOut(1 - (tNorm - tOut) / (T_GRID_OUT / T_TOTAL));
+        }
+        (gridLines.material as THREE.LineBasicMaterial).opacity = gridOpacity * 0.55;
+
+        // Morph blend: ramps during middle segment
+        let morphProgress: number;
+        if (tNorm <= tIn) {
+          morphProgress = 0;
+        } else if (tNorm >= tOut) {
+          morphProgress = 1;
+        } else {
+          morphProgress = easeInOut((tNorm - tIn) / (T_MORPH / T_TOTAL));
+        }
+
+        // Secondary mesh opacity: fade out fast then stay out (or in)
+        const secAlpha = transDir === 1
+          ? Math.max(0, 1 - morphProgress * 3)     // globe→map: fade out quickly
+          : Math.min(1, (morphProgress - 0.7) * 3); // map→globe: fade in at end
+        setSecondaryOpacity(Math.max(0, Math.min(1, secAlpha)));
+
+        const blendTarget = transDir === 1 ? morphProgress : 1 - morphProgress;
+        mapBlend = blendTarget;
+
+        // Update grid positions (CPU lerp)
+        for (let i = 0; i < gridPosBuf.count; i++) {
+          const si = i * 3;
+          gridPosBuf.array[si]     = gridSpherePos[si]     + (gridFlatPos[si]     - gridSpherePos[si])     * mapBlend;
+          (gridPosBuf.array as Float32Array)[si + 1] = gridSpherePos[si + 1] + (gridFlatPos[si + 1] - gridSpherePos[si + 1]) * mapBlend;
+          (gridPosBuf.array as Float32Array)[si + 2] = gridSpherePos[si + 2] + (gridFlatPos[si + 2] - gridSpherePos[si + 2]) * mapBlend;
+        }
+        gridPosBuf.needsUpdate = true;
+
+        // Apply terrain morph
+        if (terrainMesh.morphTargetInfluences) {
+          terrainMesh.morphTargetInfluences[0] = mapBlend;
+        }
+
+        if (tNorm >= 1) {
+          transActiveRef.current = false;
+          (gridLines.material as THREE.LineBasicMaterial).opacity = 0;
+          // Ensure secondary objects land at correct final opacity
+          setSecondaryOpacity(transDir === 1 ? 0 : 1);
+          if (transDir === -1) {
+            // Returned to globe: restore rotations
+            rotX = 0; rotY = 0;
+            savedRotX = 0; savedRotY = 0;
+          }
+        }
+      }
+
+      // ── Dark mode blend ────────────────────────────
+      darkBlend += (darkTarget - darkBlend) * 0.04;
       oceanUniforms.uNight.value  = darkBlend;
       auroraUniforms.uNight.value = darkBlend;
 
-      // Lights
       sun.color.copy(daySunCol).lerp(nightSunCol, darkBlend);
       sun.intensity   = 2.4 - 1.9 * darkBlend;
       ambient.color.copy(dayAmbCol).lerp(nightAmbCol, darkBlend);
@@ -1250,27 +1381,31 @@ export default function PlanetGlobe({ base }: { base: string }) {
       fill.color.copy(dayFillCol).lerp(nightFillCol, darkBlend);
       fill.intensity  = 0.4 - 0.25 * darkBlend;
 
-      // Terrain + tree tint
       tintEntries.forEach(({ mat, day, night }) => {
         _tintColor.copy(day).lerp(night, darkBlend);
         mat.color.copy(_tintColor);
       });
 
-      // Inertia + auto-spin
-      if (!dragging) {
+      // ── Rotation (globe mode only) ─────────────────
+      if (!dragging && mapBlend < 1) {
         velX *= 0.92;
         velY *= 0.92;
         rotY += velX;
         rotX = Math.max(-0.55, Math.min(0.55, rotX + velY));
       }
 
-      euler.set(rotX, rotY, 0);
+      // In map mode, rotation fades to 0 as mapBlend increases
+      const dispRotX = rotX * (1 - mapBlend);
+      const dispRotY = rotY * (1 - mapBlend);
+      euler.set(dispRotX, dispRotY, 0);
       planetQuat.setFromEuler(euler);
+
       terrainMesh.rotation.copy(euler);
       ocean.rotation.copy(euler);
       aurora.rotation.copy(euler);
       tempTrees.rotation.copy(euler);
       palmTrees.rotation.copy(euler);
+      gridLines.rotation.copy(euler);
       stationGroups.forEach((g) => { g.rotation.copy(euler); });
       stationLights.forEach((light, i) => {
         const sv = stationUnitVec(STATIONS[i]);
@@ -1282,7 +1417,7 @@ export default function PlanetGlobe({ base }: { base: string }) {
       stationEmissiveMats.forEach((mat) => { mat.emissiveIntensity = darkBlend * 0.45; });
 
       // ── Animated airplane ───────────────────────────
-      {
+      if (mapBlend < 0.01) {
         const TWO_PI = Math.PI * 2;
         if (planePhase === 'parked') {
           planeWaitTimer -= dt;
@@ -1296,7 +1431,6 @@ export default function PlanetGlobe({ base }: { base: string }) {
           const theta = planeOrbitAngle;
           const cosT  = Math.cos(theta);
           const sinT  = Math.sin(theta);
-          // Position and forward on great-circle orbit
           const up  = new THREE.Vector3(
             cosT * aeroVec.x + sinT * aeroRight.x,
             cosT * aeroVec.y + sinT * aeroRight.y,
@@ -1307,7 +1441,6 @@ export default function PlanetGlobe({ base }: { base: string }) {
             -sinT * aeroVec.y + cosT * aeroRight.y,
             -sinT * aeroVec.z + cosT * aeroRight.z,
           );
-          // Smooth altitude ramp for takeoff / landing
           let altFrac: number;
           if (theta < TAKEOFF_SPAN)               altFrac = smoothStep(0, TAKEOFF_SPAN, theta);
           else if (theta > TWO_PI - TAKEOFF_SPAN) altFrac = smoothStep(0, TAKEOFF_SPAN, TWO_PI - theta);
@@ -1323,15 +1456,13 @@ export default function PlanetGlobe({ base }: { base: string }) {
           );
           if (theta >= TWO_PI) { planePhase = 'parked'; planeWaitTimer = PLANE_WAIT; }
         }
-        // Window glow at night
         planeWindowMats.forEach(m => { m.emissiveIntensity = darkBlend * 0.7; });
-        // Nav lights blink regardless of day/night
         const blinkOn = Math.floor(t * 1.5) % 2 === 0;
         (navGreen.material as THREE.MeshBasicMaterial).opacity = blinkOn ? 1.0 : 0.0;
         (navRed.material   as THREE.MeshBasicMaterial).opacity = blinkOn ? 1.0 : 0.0;
       }
 
-      // Animate orbs (pulse + correct position follows planet rotation)
+      // ── Orbs ────────────────────────────────────────
       orbs.forEach((orb, i) => {
         const s = STATIONS[i];
         const sv = stationUnitVec(s);
@@ -1344,81 +1475,64 @@ export default function PlanetGlobe({ base }: { base: string }) {
         mat.transparent = true;
       });
 
-      // Sync invisible hit-test pin positions
-      pinMeshes.forEach((pin, i) => {
-        pin.position.copy(orbs[i].position);
-      });
+      pinMeshes.forEach((pin, i) => { pin.position.copy(orbs[i].position); });
 
       // ── Parrots ─────────────────────────────────────
-      for (const p of parrots) {
-        p.timer -= dt;
-        if (p.state === 'fly') {
-          stepSphere(p.pos, p.dir, 0.20 * dt, p.turnBias);
-          const flap = Math.sin(t * 14) * 0.75;
-          p.lWing.rotation.z =  flap;
-          p.rWing.rotation.z = -flap;
-          placeAnimal(p.group, p.pos, p.dir, 1.025, planetQuat);
-          if (p.timer <= 0) {
-            p.state = 'perch';
-            p.timer = 2.5 + Math.random() * 4.0;
-          }
-        } else {
-          p.lWing.rotation.z =  0.1;
-          p.rWing.rotation.z = -0.1;
-          placeAnimal(p.group, p.pos, p.dir, 1.016, planetQuat);
-          if (p.timer <= 0) {
-            p.state = 'fly';
-            p.timer = 5.0 + Math.random() * 6.0;
-            p.turnBias = (Math.random() - 0.5) * 0.12;
+      if (mapBlend < 0.01) {
+        for (const p of parrots) {
+          p.timer -= dt;
+          if (p.state === 'fly') {
+            stepSphere(p.pos, p.dir, 0.20 * dt, p.turnBias);
+            const flap = Math.sin(t * 14) * 0.75;
+            p.lWing.rotation.z =  flap;
+            p.rWing.rotation.z = -flap;
+            placeAnimal(p.group, p.pos, p.dir, 1.025, planetQuat);
+            if (p.timer <= 0) { p.state = 'perch'; p.timer = 2.5 + Math.random() * 4.0; }
+          } else {
+            p.lWing.rotation.z =  0.1;
+            p.rWing.rotation.z = -0.1;
+            placeAnimal(p.group, p.pos, p.dir, 1.016, planetQuat);
+            if (p.timer <= 0) {
+              p.state = 'fly';
+              p.timer = 5.0 + Math.random() * 6.0;
+              p.turnBias = (Math.random() - 0.5) * 0.12;
+            }
           }
         }
-      }
 
-      // ── Dolphins ────────────────────────────────────
-      for (const d of dolphins) {
-        d.timer -= dt;
-        if (d.state === 'swim') {
-          // Random wander: drift and decay toward zero
-          d.wanderAngle += (Math.random() - 0.5) * 0.003;
-          d.wanderAngle *= 0.97;
-          d.wanderAngle = Math.max(-0.018, Math.min(0.018, d.wanderAngle));
-
-          // Land avoidance: lookahead ~0.18 rad ahead
-          const ahead = d.pos.clone().addScaledVector(d.dir, 0.18).normalize();
-          const aheadH = getHeight(ahead.x, ahead.y, ahead.z);
-          const tb = d.wanderAngle + (aheadH > 0.004 ? 0.022 : 0);
-
-          stepSphere(d.pos, d.dir, 0.10 * dt, tb);
-
-          // Tail flap + body pitch undulation
-          const swing = Math.sin(t * 6.5 + d.seed);
-          d.tail.rotation.x = swing * 0.45;
-          const bobR = 1.003 + Math.sin(t * 2.8 + d.seed) * 0.003;
-          placeAnimal(d.group, d.pos, d.dir, bobR, planetQuat);
-          d.group.quaternion.multiply(
-            new THREE.Quaternion().setFromAxisAngle(
-              new THREE.Vector3(1, 0, 0), Math.sin(t * 6.5 + d.seed + 0.5) * 0.06,
-            )
-          );
-          if (d.timer <= 0) {
-            d.state = 'jump';
-            d.timer = 1.2;
-            d.jumpProgress = 0;
-          }
-        } else {
-          d.jumpProgress += dt / 1.2;
-          const arc = Math.sin(Math.min(d.jumpProgress, 1.0) * Math.PI);
-          d.tail.rotation.x = Math.sin(t * 4.0) * 0.30;
-          placeAnimal(d.group, d.pos, d.dir, 1.003 + arc * 0.065, planetQuat);
-          d.group.quaternion.multiply(
-            new THREE.Quaternion().setFromAxisAngle(
-              new THREE.Vector3(1, 0, 0),
-              (d.jumpProgress < 0.5 ? -1 : 1) * arc * 0.7,
-            )
-          );
-          if (d.timer <= 0) {
-            d.state = 'swim';
-            d.timer = 7.0 + Math.random() * 8.0;
+        // ── Dolphins ──────────────────────────────────
+        for (const d of dolphins) {
+          d.timer -= dt;
+          if (d.state === 'swim') {
+            d.wanderAngle += (Math.random() - 0.5) * 0.003;
+            d.wanderAngle *= 0.97;
+            d.wanderAngle = Math.max(-0.018, Math.min(0.018, d.wanderAngle));
+            const ahead = d.pos.clone().addScaledVector(d.dir, 0.18).normalize();
+            const aheadH = getHeight(ahead.x, ahead.y, ahead.z);
+            const tb = d.wanderAngle + (aheadH > 0.004 ? 0.022 : 0);
+            stepSphere(d.pos, d.dir, 0.10 * dt, tb);
+            const swing = Math.sin(t * 6.5 + d.seed);
+            d.tail.rotation.x = swing * 0.45;
+            const bobR = 1.003 + Math.sin(t * 2.8 + d.seed) * 0.003;
+            placeAnimal(d.group, d.pos, d.dir, bobR, planetQuat);
+            d.group.quaternion.multiply(
+              new THREE.Quaternion().setFromAxisAngle(
+                new THREE.Vector3(1, 0, 0), Math.sin(t * 6.5 + d.seed + 0.5) * 0.06,
+              )
+            );
+            if (d.timer <= 0) { d.state = 'jump'; d.timer = 1.2; d.jumpProgress = 0; }
+          } else {
+            d.jumpProgress += dt / 1.2;
+            const arc = Math.sin(Math.min(d.jumpProgress, 1.0) * Math.PI);
+            d.tail.rotation.x = Math.sin(t * 4.0) * 0.30;
+            placeAnimal(d.group, d.pos, d.dir, 1.003 + arc * 0.065, planetQuat);
+            d.group.quaternion.multiply(
+              new THREE.Quaternion().setFromAxisAngle(
+                new THREE.Vector3(1, 0, 0),
+                (d.jumpProgress < 0.5 ? -1 : 1) * arc * 0.7,
+              )
+            );
+            if (d.timer <= 0) { d.state = 'swim'; d.timer = 7.0 + Math.random() * 8.0; }
           }
         }
       }
@@ -1439,9 +1553,43 @@ export default function PlanetGlobe({ base }: { base: string }) {
   }, [base]);
 
   return (
-    <div
-      ref={mountRef}
-      style={{ width: '100%', height: '100%', position: 'absolute', inset: 0 }}
-    />
+    <div style={{ width: '100%', height: '100%', position: 'absolute', inset: 0 }}>
+      <div
+        ref={mountRef}
+        style={{ width: '100%', height: '100%', position: 'absolute', inset: 0 }}
+      />
+      <button
+        onClick={toggleMap}
+        style={{
+          position: 'absolute',
+          bottom: '1.6rem',
+          left: '1.6rem',
+          zIndex: 100,
+          background: 'rgba(10, 18, 30, 0.72)',
+          color: '#c8d8e8',
+          border: '1px solid rgba(140, 180, 220, 0.35)',
+          borderRadius: '4px',
+          fontFamily: "'Courier New', Courier, monospace",
+          fontSize: '0.72rem',
+          letterSpacing: '0.12em',
+          padding: '0.5em 1.1em',
+          cursor: 'pointer',
+          backdropFilter: 'blur(6px)',
+          textTransform: 'uppercase',
+          transition: 'border-color 0.2s, color 0.2s',
+          userSelect: 'none',
+        }}
+        onMouseEnter={e => {
+          (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(140,200,255,0.7)';
+          (e.currentTarget as HTMLButtonElement).style.color = '#e8f4ff';
+        }}
+        onMouseLeave={e => {
+          (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(140,180,220,0.35)';
+          (e.currentTarget as HTMLButtonElement).style.color = '#c8d8e8';
+        }}
+      >
+        {mapModeDisplay === 'globe' ? '평면 지도' : '구형 행성'}
+      </button>
+    </div>
   );
 }

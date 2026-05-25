@@ -21,11 +21,14 @@ public: true
 | passive | 틀에 고정된 벡터 관점에서 기술한, 틀의 움직임        | alias |
 
 passive 회전을 다음과 같이 한 번 더 구분할 수 있다.
+- 여기서, reference란 회전을 측정하기 위한 기준이 되는 어떤 틀을 의미하며, 사용자가 설정한다.
+	- INS 항법 분야: reference는 navigation frame
+	- 로보틱스 분야: reference는 world frame
 
-| 약자   | 풀이             | 설명                   | 기호       |
-| ---- | -------------- | -------------------- | -------- |
-| PATB | passive a-to-b | 회전 {전 `→` 후} 움직임을 기술 | $C_{ba}$ |
-| PBTA | passive b-to-a | 회전 {후 `→` 전} 움직임을 기술 | $C_{ab}$ |
+| 약자   | 풀이                          | 설명                  | 기호       |
+| ---- | --------------------------- | ------------------- | -------- |
+| PATB | passive reference-to-target | 기준 `→` 회전 후 움직임을 기술 | $C_{br}$ |
+| PBTA | passive target-to-reference | 회전 후 `→` 기준 움직임을 기술 | $C_{rb}$ |
 - [@sommerWhyHowAvoid2018]은 $a$와 $b$를 각각 world, body라 표현한다.
 - [@solaQuaternionKinematicsErrorstate2017]은 이 구분을 function이라 지칭하고, $a$와 $b$를 각각 global, local이라 표현한다.
 
