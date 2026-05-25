@@ -18,7 +18,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const hasNav = navArticles && navArticles.length > 0 && navBase;
 ---
 
-<BaseLayout title={title} description={description}>
+<BaseLayout title={title} description={description} noFooter={true}>
   <!-- Fixed ocean background -->
   <div id="marine-bg" aria-hidden="true">
     <img id="ocean-day"   src={`${base}/images/functional/ocean_profile(day).webp`}   alt="" />
@@ -99,6 +99,9 @@ const hasNav = navArticles && navArticles.length > 0 && navBase;
           </div>
         </aside>
       </div>
+      <footer class="site-footer">
+        <p>Charted by tershire · <a href="https://github.com/tershire/ena-world">source</a></p>
+      </footer>
     </div>
   </div>
 </BaseLayout>
@@ -450,7 +453,7 @@ const hasNav = navArticles && navArticles.length > 0 && navBase;
   .sidebar-card {
     background: var(--bg-panel);
     border: 1px solid var(--color-sepia);
-    border-radius: 1rem;
+    border-radius: 4px;
     padding: 1.25rem;
     backdrop-filter: blur(4px);
     display: flex;

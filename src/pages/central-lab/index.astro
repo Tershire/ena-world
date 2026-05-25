@@ -14,7 +14,7 @@ const navArticles = raw.map((a) => ({ id: a.id, title: a.data.title }));
 const bgImage = `${base}/images/labs/central_lab_interior_day.webp`;
 ---
 
-<BaseLayout title="Central Lab">
+<BaseLayout title="Central Lab" noFooter={true}>
   <div class="index-layout" style={`background-image: url('${bgImage}')`}>
     {navArticles.length > 0 && (
       <aside class="index-nav">
@@ -25,11 +25,16 @@ const bgImage = `${base}/images/labs/central_lab_interior_day.webp`;
     )}
 
     <main class="index-main">
-      <header class="station-header">
-        <p class="station-label">Central Research Station</p>
-        <h1>Central Lab</h1>
-        <p class="station-desc">Navigation, SLAM, and estimation theory — the main archive.</p>
-      </header>
+      <div class="index-content">
+        <header class="station-header">
+          <p class="station-label">Central Research Station</p>
+          <h1>Central Lab</h1>
+          <p class="station-desc">Navigation, SLAM, and estimation theory — the main archive.</p>
+        </header>
+      </div>
+      <footer class="site-footer">
+        <p>Charted by tershire · <a href="https://github.com/tershire/ena-world">source</a></p>
+      </footer>
     </main>
   </div>
 </BaseLayout>
@@ -67,19 +72,19 @@ const bgImage = `${base}/images/labs/central_lab_interior_day.webp`;
   .index-main {
     flex: 1;
     min-width: 0;
-    padding: 4rem 2rem;
+    padding: 4rem 2rem 0;
+    display: flex;
+    flex-direction: column;
   }
+
+  .index-content { flex: 1; }
 
   .station-header {
     display: inline-block;
-    background: rgba(255, 255, 255, 0.55);
+    background: rgba(20, 17, 13, 0.55);
     padding: 1.25rem 2rem 1.25rem;
     border-radius: 4px;
     margin-bottom: 2.5rem;
-  }
-
-  :global([data-theme="dark"]) .station-header {
-    background: rgba(20, 17, 13, 0.55);
   }
 
   .station-header::after {
@@ -94,11 +99,11 @@ const bgImage = `${base}/images/labs/central_lab_interior_day.webp`;
     font-size: 0.7rem;
     letter-spacing: 0.15em;
     text-transform: uppercase;
-    color: var(--color-ink-faded);
+    color: #9a8870;
     margin-bottom: 0.5rem;
   }
 
-  .station-header h1 { font-size: 2.5rem; margin-bottom: 0.4rem; }
+  .station-header h1 { font-size: 2.5rem; margin-bottom: 0.4rem; color: #ddd0b8; }
 
-  .station-desc { color: var(--color-ink-faded); font-style: italic; }
+  .station-desc { color: #9a8870; font-style: italic; }
 </style>

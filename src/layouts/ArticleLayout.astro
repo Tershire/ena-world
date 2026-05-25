@@ -17,7 +17,7 @@ const { title, description, date, tags = [], navArticles, navBase, navLabel, cur
 const hasNav = navArticles && navArticles.length > 0 && navBase;
 ---
 
-<BaseLayout title={title} description={description}>
+<BaseLayout title={title} description={description} noFooter={true}>
   <!-- Top reading progress bar -->
   <div id="reading-bar"></div>
 
@@ -75,6 +75,9 @@ const hasNav = navArticles && navArticles.length > 0 && navBase;
           </div>
         </aside>
       </div>
+      <footer class="site-footer">
+        <p>Charted by tershire · <a href="https://github.com/tershire/ena-world">source</a></p>
+      </footer>
     </div>
   </div>
 </BaseLayout>
@@ -252,7 +255,7 @@ const hasNav = navArticles && navArticles.length > 0 && navBase;
   .toc-card {
     background: var(--bg-panel);
     border: 1px solid var(--color-sepia);
-    border-radius: 1rem;
+    border-radius: 4px;
     padding: 1.25rem;
     display: flex;
     flex-direction: column;

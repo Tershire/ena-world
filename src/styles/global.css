@@ -192,6 +192,14 @@ a.internal.new {
   text-indent: -2.5em;
 }
 
+/* ── Footer ────────────────────────────────────────────── */
+.site-footer {
+  padding: 1.5rem 2rem;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--color-ink-faded);
+}
+
 /* ── Marine lab: pelagic scroll ────────────────────────── */
 .pelagic-bg {
   transition: background-color 0.4s ease;

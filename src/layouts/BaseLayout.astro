@@ -6,9 +6,10 @@ import ClientRouter from 'astro/components/ClientRouter.astro';
 interface Props {
   title: string;
   description?: string;
+  noFooter?: boolean;
 }
 
-const { title, description = 'ENA World — Navigation & SLAM explorer' } = Astro.props;
+const { title, description = 'ENA World — Navigation & SLAM explorer', noFooter = false } = Astro.props;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 
 function stripMarkdown(md: string) {
@@ -135,9 +136,11 @@ const searchIndex = [
       </div>
     </div>
 
-    <footer class="site-footer">
-      <p>Charted by tershire · <a href="https://github.com/tershire/ena-world">source</a></p>
-    </footer>
+    {!noFooter && (
+      <footer class="site-footer">
+        <p>Charted by tershire · <a href="https://github.com/tershire/ena-world">source</a></p>
+      </footer>
+    )}
 
     <script>
       function syncThemeIcon() {
@@ -464,10 +467,4 @@ const searchIndex = [
     text-align: center;
   }
 
-  .site-footer {
-    padding: 1.5rem 2rem;
-    text-align: center;
-    font-size: 0.8rem;
-    color: var(--color-ink-faded);
-  }
 </style>
