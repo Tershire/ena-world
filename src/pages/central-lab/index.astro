@@ -1,9 +1,7 @@
 ---
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import ArticleGrid from '../../components/ArticleGrid';
 import NavTree from '../../components/NavTree.astro';
-import type { ArticleItem } from '../../components/ArticleGrid';
 
 const raw = (await getCollection('central-lab'))
   .filter((a) => a.data.public)
@@ -13,18 +11,11 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const navBase = `${base}/central-lab`;
 const navArticles = raw.map((a) => ({ id: a.id, title: a.data.title }));
 
-const articles: ArticleItem[] = raw.map((a) => ({
-  id:          a.id,
-  title:       a.data.title,
-  description: a.data.description,
-  date:        a.data.date?.toISOString(),
-  tags:        a.data.tags ?? [],
-  href:        `${base}/central-lab/${a.id}`,
-}));
+const bgImage = `${base}/images/labs/central_lab_interior_day.webp`;
 ---
 
 <BaseLayout title="Central Lab">
-  <div class="index-layout">
+  <div class="index-layout" style={`background-image: url('${bgImage}')`}>
     {navArticles.length > 0 && (
       <aside class="index-nav">
         <div class="nav-sticky">
@@ -39,13 +30,6 @@ const articles: ArticleItem[] = raw.map((a) => ({
         <h1>Central Lab</h1>
         <p class="station-desc">Navigation, SLAM, and estimation theory — the main archive.</p>
       </header>
-
-      <ArticleGrid
-        client:load
-        articles={articles}
-        accentVar="--color-sepia"
-        emptyMsg="No articles yet. Start writing in Obsidian."
-      />
     </main>
   </div>
 </BaseLayout>
@@ -55,6 +39,8 @@ const articles: ArticleItem[] = raw.map((a) => ({
     display: flex;
     align-items: stretch;
     min-height: calc(100vh - 52px);
+    background-size: cover;
+    background-position: center;
   }
 
   .index-nav { display: none; }
@@ -62,7 +48,7 @@ const articles: ArticleItem[] = raw.map((a) => ({
   @media (min-width: 1060px) {
     .index-nav {
       display: block;
-      width: 200px;
+      width: 280px;
       flex-shrink: 0;
       align-self: stretch;
       background: var(--bg-panel);
@@ -84,9 +70,23 @@ const articles: ArticleItem[] = raw.map((a) => ({
   }
 
   .station-header {
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.55);
+    padding: 1.25rem 2rem 1.25rem;
+    border-radius: 4px;
     margin-bottom: 2.5rem;
-    border-bottom: 1px solid var(--color-sepia);
-    padding-bottom: 1.75rem;
+  }
+
+  :global([data-theme="dark"]) .station-header {
+    background: rgba(20, 17, 13, 0.55);
+  }
+
+  .station-header::after {
+    content: '';
+    display: block;
+    height: 1px;
+    background: var(--color-sepia);
+    margin-top: 0.9rem;
   }
 
   .station-label {

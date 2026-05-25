@@ -1,9 +1,7 @@
 ---
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import ArticleGrid from '../../components/ArticleGrid';
 import NavTree from '../../components/NavTree.astro';
-import type { ArticleItem } from '../../components/ArticleGrid';
 
 const raw = (await getCollection('aerospace-lab'))
   .filter((a) => a.data.public)
@@ -12,15 +10,6 @@ const raw = (await getCollection('aerospace-lab'))
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const navBase = `${base}/aerospace-lab`;
 const navArticles = raw.map((a) => ({ id: a.id, title: a.data.title }));
-
-const articles: ArticleItem[] = raw.map((a) => ({
-  id:          a.id,
-  title:       a.data.title,
-  description: a.data.description,
-  date:        a.data.date?.toISOString(),
-  tags:        a.data.tags ?? [],
-  href:        `${base}/aerospace-lab/${a.id}`,
-}));
 ---
 
 <BaseLayout title="Aerospace Lab">
@@ -39,13 +28,6 @@ const articles: ArticleItem[] = raw.map((a) => ({
         <h1>Aerospace Lab</h1>
         <p class="station-desc">INS · GNSS · aerial SLAM · atmospheric navigation</p>
       </header>
-
-      <ArticleGrid
-        client:load
-        articles={articles}
-        accentVar="--color-sky"
-        emptyMsg="No articles yet. The sky awaits."
-      />
     </main>
   </div>
 </BaseLayout>
@@ -62,7 +44,7 @@ const articles: ArticleItem[] = raw.map((a) => ({
   @media (min-width: 1060px) {
     .index-nav {
       display: block;
-      width: 200px;
+      width: 280px;
       flex-shrink: 0;
       align-self: stretch;
       background: var(--bg-panel);
@@ -84,9 +66,23 @@ const articles: ArticleItem[] = raw.map((a) => ({
   }
 
   .station-header {
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.55);
+    padding: 1.25rem 2rem 1.25rem;
+    border-radius: 4px;
     margin-bottom: 2.5rem;
-    border-bottom: 1px solid var(--color-sepia);
-    padding-bottom: 1.75rem;
+  }
+
+  :global([data-theme="dark"]) .station-header {
+    background: rgba(20, 17, 13, 0.55);
+  }
+
+  .station-header::after {
+    content: '';
+    display: block;
+    height: 1px;
+    background: var(--color-sepia);
+    margin-top: 0.9rem;
   }
 
   .station-label {
