@@ -208,15 +208,20 @@ function buildTerrain() {
   }
 
   const SEG = 80;
-  const geo = new THREE.SphereGeometry(1, SEG, SEG);
+  // phiStart=3π/2 places the geometry seam at -Z (back of planet = date line in flat map)
+  // so no triangle spans the ±π date-line discontinuity when flattening to equirectangular
+  const geo = new THREE.SphereGeometry(1, SEG, SEG, Math.PI * 1.5);
   const positions = geo.attributes.position;
+  const uvs = geo.attributes.uv;
   const colors: number[] = [];
   const tempTreePos: THREE.Vector3[] = [];
   const palmTreePos: THREE.Vector3[] = [];
 
   // Flat map morph target buffers
-  const flatPositions = new Float32Array(positions.count * 3);
-  const flatNormals   = new Float32Array(positions.count * 3);
+  const spherePositions = new Float32Array(positions.count * 3);
+  const flatPositions   = new Float32Array(positions.count * 3);
+  const sphereColors    = new Float32Array(positions.count * 3);
+  const flatColors      = new Float32Array(positions.count * 3);
 
   for (let i = 0; i < positions.count; i++) {
     const x = positions.getX(i);
@@ -230,17 +235,24 @@ function buildTerrain() {
     const r   = h >= 0 ? 1.0 + Math.max(h, 0.012) : 1.0 + h;
 
     positions.setXYZ(i, nx * r, ny * r, nz * r);
-    colors.push(...biomeColor(h, ny).toArray());
+    spherePositions[i*3]     = nx * r;
+    spherePositions[i*3 + 1] = ny * r;
+    spherePositions[i*3 + 2] = nz * r;
 
-    // Equirectangular flat position from unit-sphere direction
-    const latR = Math.asin(Math.max(-1, Math.min(1, ny)));
-    const lonR = Math.atan2(nz, nx);
-    flatPositions[i*3]     = lonR / Math.PI * FLAT_W;
-    flatPositions[i*3 + 1] = latR / (Math.PI * 0.5) * FLAT_H;
+    const sc = biomeColor(h, ny);
+    colors.push(sc.r, sc.g, sc.b);
+    sphereColors[i*3] = sc.r; sphereColors[i*3+1] = sc.g; sphereColors[i*3+2] = sc.b;
+
+    // Flat: water areas get ocean blue instead of seafloor colors
+    const fc = h < -0.01 ? new THREE.Color(h < -0.06 ? 0x0d2e5c : 0x1a6090) : sc;
+    flatColors[i*3] = fc.r; flatColors[i*3+1] = fc.g; flatColors[i*3+2] = fc.b;
+
+    // Flat position via UV: seam vertices have u=0/u=1 → map to ±FLAT_W edges (no stretch)
+    const u = uvs.getX(i);
+    const v = uvs.getY(i);
+    flatPositions[i*3]     = (u - 0.5) * 2 * FLAT_W;
+    flatPositions[i*3 + 1] = (v - 0.5) * 2 * FLAT_H;
     flatPositions[i*3 + 2] = 0;
-    flatNormals[i*3]     = 0;
-    flatNormals[i*3 + 1] = 0;
-    flatNormals[i*3 + 2] = 1;
 
     const surfPt = new THREE.Vector3(nx * (r + 0.002), ny * (r + 0.002), nz * (r + 0.002));
     const rand   = rng();
@@ -254,14 +266,12 @@ function buildTerrain() {
 
   geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(colors), 3));
   geo.computeVertexNormals();
+  // Snapshot sphere normals for blending during flat transition
+  const sphereNormals = new Float32Array(geo.attributes.normal.array as Float32Array);
 
-  // Add morph targets (r149+: auto-detected, no material flag needed)
-  geo.morphAttributes.position = [new THREE.BufferAttribute(flatPositions, 3)];
-  geo.morphAttributes.normal   = [new THREE.BufferAttribute(flatNormals,   3)];
-
-  const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true }));
-  // morphTargetInfluences[0] initialized to 0 by Mesh constructor
-  return { mesh, tempTreePos, palmTreePos, height };
+  // DoubleSide: back-hemisphere triangles are visible after flattening
+  const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+  return { mesh, tempTreePos, palmTreePos, height, spherePositions, flatPositions, sphereNormals, sphereColors, flatColors };
 }
 
 // ── Grid ─────────────────────────────────────────────────
@@ -291,8 +301,8 @@ function buildGrid(): {
       const lon0 = (i / N) * 2 * Math.PI - Math.PI;
       const lon1 = ((i + 1) / N) * 2 * Math.PI - Math.PI;
       seg(
-        GRID_R * cosLat * Math.cos(lon0), GRID_R * sinLat, GRID_R * cosLat * Math.sin(lon0),
-        GRID_R * cosLat * Math.cos(lon1), GRID_R * sinLat, GRID_R * cosLat * Math.sin(lon1),
+        GRID_R * cosLat * Math.sin(lon0), GRID_R * sinLat, GRID_R * cosLat * Math.cos(lon0),
+        GRID_R * cosLat * Math.sin(lon1), GRID_R * sinLat, GRID_R * cosLat * Math.cos(lon1),
         lon0 / Math.PI * FLAT_W, fy,
         lon1 / Math.PI * FLAT_W, fy,
       );
@@ -308,8 +318,8 @@ function buildGrid(): {
       const c0 = Math.cos(lat0), s0 = Math.sin(lat0);
       const c1 = Math.cos(lat1), s1 = Math.sin(lat1);
       seg(
-        GRID_R * c0 * Math.cos(lon), GRID_R * s0, GRID_R * c0 * Math.sin(lon),
-        GRID_R * c1 * Math.cos(lon), GRID_R * s1, GRID_R * c1 * Math.sin(lon),
+        GRID_R * c0 * Math.sin(lon), GRID_R * s0, GRID_R * c0 * Math.cos(lon),
+        GRID_R * c1 * Math.sin(lon), GRID_R * s1, GRID_R * c1 * Math.cos(lon),
         fx, lat0 / (Math.PI * 0.5) * FLAT_H,
         fx, lat1 / (Math.PI * 0.5) * FLAT_H,
       );
@@ -940,7 +950,15 @@ export default function PlanetGlobe({ base }: { base: string }) {
     scene.add(starPoints);
 
     // ── Terrain ───────────────────────────────────────
-    const { mesh: terrainMesh, tempTreePos, palmTreePos, height: getHeight } = buildTerrain();
+    const {
+      mesh: terrainMesh, tempTreePos, palmTreePos, height: getHeight,
+      spherePositions: terrainSphPos, flatPositions: terrainFlatPos,
+      sphereNormals: terrainSphNor,
+      sphereColors: terrainSphCol, flatColors: terrainFlatCol,
+    } = buildTerrain();
+    const terrainPosBuf = terrainMesh.geometry.attributes.position as THREE.BufferAttribute;
+    const terrainNorBuf = terrainMesh.geometry.attributes.normal   as THREE.BufferAttribute;
+    const terrainColBuf = terrainMesh.geometry.attributes.color    as THREE.BufferAttribute;
     scene.add(terrainMesh);
 
     // ── Ocean ─────────────────────────────────────────
@@ -1134,6 +1152,50 @@ export default function PlanetGlobe({ base }: { base: string }) {
       orb.position.copy(pinMeshes[i].position);
       scene.add(orb);
       return orb;
+    });
+
+    // ── Flat map station markers ──────────────────
+    // Each station's flat XY position in world space
+    const stationFlatXY = STATIONS.map((s) => {
+      const sv  = stationUnitVec(s);
+      const lat = Math.asin(Math.max(-1, Math.min(1, sv.y)));
+      const lon = Math.atan2(sv.x, sv.z);
+      return new THREE.Vector2(lon / Math.PI * FLAT_W, lat / (Math.PI * 0.5) * FLAT_H);
+    });
+
+    // Ring + dot meshes, both tracked explicitly
+    const flatRings: THREE.Mesh[] = [];
+    const flatDots:  THREE.Mesh[] = [];
+    STATIONS.forEach((s, i) => {
+      const { x, y } = stationFlatXY[i];
+      const ringMat = new THREE.MeshBasicMaterial({
+        color: s.color, transparent: true, opacity: 0,
+        side: THREE.DoubleSide, depthWrite: false,
+      });
+      const dotMat = ringMat.clone();
+      const ring = new THREE.Mesh(new THREE.RingGeometry(0.022, 0.036, 32), ringMat);
+      const dot  = new THREE.Mesh(new THREE.CircleGeometry(0.010, 24),      dotMat);
+      ring.position.set(x, y, 0.015);
+      dot.position.set(x,  y, 0.016);
+      ring.renderOrder = 6; dot.renderOrder = 7;
+      scene.add(ring); scene.add(dot);
+      flatRings.push(ring); flatDots.push(dot);
+    });
+
+    // HTML labels appended to canvas container (position:absolute, clipped by parent overflow:hidden)
+    const flatLabels: HTMLDivElement[] = STATIONS.map((s) => {
+      const div = document.createElement('div');
+      div.textContent = s.label;
+      div.style.cssText = `
+        position:absolute; pointer-events:none; z-index:150;
+        color:#e8d8b8; font-family:'Palatino Linotype',Palatino,serif;
+        font-size:0.68rem; letter-spacing:0.10em; text-transform:uppercase;
+        text-shadow:0 1px 4px rgba(0,0,0,0.9);
+        opacity:0; white-space:nowrap;
+        transform:translateX(-50%);
+      `;
+      el.appendChild(div);
+      return div;
     });
 
     // ── Tooltip ───────────────────────────────────
@@ -1342,19 +1404,35 @@ export default function PlanetGlobe({ base }: { base: string }) {
         const blendTarget = transDir === 1 ? morphProgress : 1 - morphProgress;
         mapBlend = blendTarget;
 
-        // Update grid positions (CPU lerp)
-        for (let i = 0; i < gridPosBuf.count; i++) {
-          const si = i * 3;
-          gridPosBuf.array[si]     = gridSpherePos[si]     + (gridFlatPos[si]     - gridSpherePos[si])     * mapBlend;
-          (gridPosBuf.array as Float32Array)[si + 1] = gridSpherePos[si + 1] + (gridFlatPos[si + 1] - gridSpherePos[si + 1]) * mapBlend;
-          (gridPosBuf.array as Float32Array)[si + 2] = gridSpherePos[si + 2] + (gridFlatPos[si + 2] - gridSpherePos[si + 2]) * mapBlend;
+        // CPU-lerp grid positions
+        const ga = gridPosBuf.array as Float32Array;
+        for (let i = 0; i < gridPosBuf.count * 3; i++) {
+          ga[i] = gridSpherePos[i] + (gridFlatPos[i] - gridSpherePos[i]) * mapBlend;
         }
         gridPosBuf.needsUpdate = true;
 
-        // Apply terrain morph
-        if (terrainMesh.morphTargetInfluences) {
-          terrainMesh.morphTargetInfluences[0] = mapBlend;
+        // CPU-lerp terrain positions + normals toward (0,0,1) + colors toward flat ocean
+        const ta = terrainPosBuf.array as Float32Array;
+        const na = terrainNorBuf.array as Float32Array;
+        const ca = terrainColBuf.array as Float32Array;
+        const mb = mapBlend, mb1 = 1 - mapBlend;
+        for (let i = 0; i < terrainPosBuf.count; i++) {
+          const si = i * 3;
+          ta[si]   = terrainSphPos[si]   * mb1 + terrainFlatPos[si]   * mb;
+          ta[si+1] = terrainSphPos[si+1] * mb1 + terrainFlatPos[si+1] * mb;
+          ta[si+2] = terrainSphPos[si+2] * mb1 + terrainFlatPos[si+2] * mb;
+          // Blend normals: sphere normals → (0,0,1) so flat terrain is lit from camera
+          na[si]   = terrainSphNor[si]   * mb1;
+          na[si+1] = terrainSphNor[si+1] * mb1;
+          na[si+2] = terrainSphNor[si+2] * mb1 + mb;
+          // Blend colors: seafloor → ocean blue for h<0 areas
+          ca[si]   = terrainSphCol[si]   * mb1 + terrainFlatCol[si]   * mb;
+          ca[si+1] = terrainSphCol[si+1] * mb1 + terrainFlatCol[si+1] * mb;
+          ca[si+2] = terrainSphCol[si+2] * mb1 + terrainFlatCol[si+2] * mb;
         }
+        terrainPosBuf.needsUpdate = true;
+        terrainNorBuf.needsUpdate = true;
+        terrainColBuf.needsUpdate = true;
 
         if (tNorm >= 1) {
           transActiveRef.current = false;
@@ -1374,12 +1452,31 @@ export default function PlanetGlobe({ base }: { base: string }) {
       oceanUniforms.uNight.value  = darkBlend;
       auroraUniforms.uNight.value = darkBlend;
 
+      // In flat mode boost ambient so vertex colors show correctly on flat normals
+      const flatLit = mapBlend;
       sun.color.copy(daySunCol).lerp(nightSunCol, darkBlend);
-      sun.intensity   = 2.4 - 1.9 * darkBlend;
+      sun.intensity   = (2.4 - 1.9 * darkBlend) * (1 - flatLit * 0.85);
       ambient.color.copy(dayAmbCol).lerp(nightAmbCol, darkBlend);
-      ambient.intensity = 1.0 - 0.4 * darkBlend;
+      ambient.intensity = (1.0 - 0.4 * darkBlend) + flatLit * 1.2;
       fill.color.copy(dayFillCol).lerp(nightFillCol, darkBlend);
-      fill.intensity  = 0.4 - 0.25 * darkBlend;
+      fill.intensity  = (0.4 - 0.25 * darkBlend) * (1 - flatLit * 0.6);
+
+      // Flat map station markers — fade in near end of transition
+      flatRings.forEach((ring, i) => {
+        const alpha = mapBlend * (0.55 + 0.45 * Math.sin(t * 2.5 + i * 2.1));
+        (ring.material as THREE.MeshBasicMaterial).opacity = alpha;
+        (flatDots[i].material as THREE.MeshBasicMaterial).opacity = mapBlend * 0.9;
+
+        // Project flat 3D position to canvas pixel coords for HTML label
+        const wp = new THREE.Vector3(stationFlatXY[i].x, stationFlatXY[i].y, 0.015);
+        wp.project(camera);
+        const sx = ( wp.x * 0.5 + 0.5) * el.clientWidth;
+        const sy = (-wp.y * 0.5 + 0.5) * el.clientHeight;
+        const lbl = flatLabels[i];
+        lbl.style.opacity = String(Math.min(1, mapBlend * 2));
+        lbl.style.left    = `${sx}px`;
+        lbl.style.top     = `${sy + 24}px`;
+      });
 
       tintEntries.forEach(({ mat, day, night }) => {
         _tintColor.copy(day).lerp(night, darkBlend);
@@ -1547,6 +1644,7 @@ export default function PlanetGlobe({ base }: { base: string }) {
       renderer.dispose();
       if (el.contains(renderer.domElement)) el.removeChild(renderer.domElement);
       document.body.removeChild(tooltip);
+      flatLabels.forEach(div => { if (el.contains(div)) el.removeChild(div); });
       window.removeEventListener('resize', onResize);
       window.removeEventListener('pointerup', () => { dragging = false; });
     };
