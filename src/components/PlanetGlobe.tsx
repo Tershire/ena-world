@@ -934,6 +934,8 @@ export default function PlanetGlobe({ base }: { base: string }) {
     const scene  = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(42, el.clientWidth / el.clientHeight, 0.1, 200);
     camera.position.set(0, 0, 4.0);
+    const GLOBE_Z = 4.0;
+    const MAP_Z   = FLAT_H / Math.tan((camera.fov / 2) * Math.PI / 180);
 
     // ── Lights ────────────────────────────────────────
     const sun = new THREE.DirectionalLight(0xfff0d0, 2.4);
@@ -1439,11 +1441,6 @@ export default function PlanetGlobe({ base }: { base: string }) {
           (gridLines.material as THREE.LineBasicMaterial).opacity = 0;
           // Ensure secondary objects land at correct final opacity
           setSecondaryOpacity(transDir === 1 ? 0 : 1);
-          if (transDir === -1) {
-            // Returned to globe: restore rotations
-            rotX = 0; rotY = 0;
-            savedRotX = 0; savedRotY = 0;
-          }
         }
       }
 
@@ -1451,6 +1448,9 @@ export default function PlanetGlobe({ base }: { base: string }) {
       darkBlend += (darkTarget - darkBlend) * 0.04;
       oceanUniforms.uNight.value  = darkBlend;
       auroraUniforms.uNight.value = darkBlend;
+
+      // Zoom camera toward flat map so it fills the viewport
+      camera.position.z = GLOBE_Z + (MAP_Z - GLOBE_Z) * mapBlend;
 
       // In flat mode boost ambient so vertex colors show correctly on flat normals
       const flatLit = mapBlend;
@@ -1670,7 +1670,7 @@ export default function PlanetGlobe({ base }: { base: string }) {
           fontFamily: "'Courier New', Courier, monospace",
           fontSize: '0.72rem',
           letterSpacing: '0.12em',
-          padding: '0.5em 1.1em',
+          padding: '0.5em 0.7em',
           cursor: 'pointer',
           backdropFilter: 'blur(6px)',
           textTransform: 'uppercase',
@@ -1686,7 +1686,22 @@ export default function PlanetGlobe({ base }: { base: string }) {
           (e.currentTarget as HTMLButtonElement).style.color = '#c8d8e8';
         }}
       >
-        {mapModeDisplay === 'globe' ? '평면 지도' : '구형 행성'}
+        {mapModeDisplay === 'globe' ? (
+          /* flat-map icon: rectangle with grid lines */
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            <rect x="2" y="5" width="16" height="10" rx="1"/>
+            <line x1="7.5" y1="5" x2="7.5" y2="15"/>
+            <line x1="12.5" y1="5" x2="12.5" y2="15"/>
+            <line x1="2" y1="10" x2="18" y2="10"/>
+          </svg>
+        ) : (
+          /* globe icon: circle with meridian and equator */
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            <circle cx="10" cy="10" r="7.5"/>
+            <ellipse cx="10" cy="10" rx="3.8" ry="7.5"/>
+            <line x1="2.5" y1="10" x2="17.5" y2="10"/>
+          </svg>
+        )}
       </button>
     </div>
   );
