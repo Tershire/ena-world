@@ -52,8 +52,27 @@ description: "Optional one-liner shown in listings."
 date: 2026-05-17
 tags: [estimation, filtering]
 public: true          # omit or set false to keep the note private
+order: 1              # optional: position in the nav sidebar (lower = higher)
 ---
 ```
+
+Articles without `order` default to 999 and sort alphabetically among themselves.
+
+### Ordering directories
+
+Each directory under `src/content/` has an `_index.md` that controls its nav position and display name:
+
+```yaml
+# src/content/central-lab/kinematics/_index.md
+---
+title: Kinematics
+order: 1
+---
+```
+
+**These files live in `src/content/`, not in the Obsidian vault.** Edit them directly to reorder directories.
+
+When `sync-vault.sh` encounters a new directory (one you created in Obsidian), it auto-creates an `_index.md` with `order: 999`. Change the order value afterwards to position the directory where you want it.
 
 ### Wikilinks
 
