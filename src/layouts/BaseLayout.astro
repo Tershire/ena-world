@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css';
 import { getCollection } from 'astro:content';
+import ClientRouter from 'astro/components/ClientRouter.astro';
 
 interface Props {
   title: string;
@@ -70,6 +71,7 @@ const searchIndex = [
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Abel&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+    <ClientRouter />
     <!-- Theme init: runs before paint to prevent flash -->
     <script is:inline>
       (function () {
