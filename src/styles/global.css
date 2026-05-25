@@ -51,6 +51,9 @@ body {
   font-family: var(--font-body);
   line-height: 1.75;
   transition: background-color 0.25s ease, color 0.25s ease;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
 }
 
 /* ── Typography ────────────────────────────────────────── */
