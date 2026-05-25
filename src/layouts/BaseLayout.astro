@@ -10,24 +10,50 @@ interface Props {
 const { title, description = 'ENA World — Navigation & SLAM explorer' } = Astro.props;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 
+function stripMarkdown(md: string) {
+  return md
+    .replace(/^---[\s\S]*?---\n/m, '')   // frontmatter
+    .replace(/\$\$[\s\S]*?\$\$/g, ' ')   // display math
+    .replace(/\$[^$\n]+\$/g, ' ')        // inline math
+    .replace(/```[\s\S]*?```/g, ' ')     // code blocks
+    .replace(/`[^`]+`/g, ' ')           // inline code
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1') // links/images → keep label
+    .replace(/#{1,6}\s/g, '')            // headings
+    .replace(/[*_~>|\\]/g, ' ')         // emphasis, blockquote, table
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 const searchIndex = [
   ...(await getCollection('central-lab')).filter(a => a.data.public).map(a => ({
     title: a.data.title,
     description: a.data.description ?? '',
+    tags: a.data.tags ?? [],
+    date: a.data.date?.toISOString() ?? '',
+    body: stripMarkdown(a.body ?? ''),
     href: `${base}/central-lab/${a.id}`,
     lab: 'Central Lab',
+    accent: 'var(--color-sepia)',
   })),
   ...(await getCollection('aerospace-lab')).filter(a => a.data.public).map(a => ({
     title: a.data.title,
     description: a.data.description ?? '',
+    tags: a.data.tags ?? [],
+    date: a.data.date?.toISOString() ?? '',
+    body: stripMarkdown(a.body ?? ''),
     href: `${base}/aerospace-lab/${a.id}`,
     lab: 'Aerospace Lab',
+    accent: 'var(--color-sky)',
   })),
   ...(await getCollection('marine-lab')).filter(a => a.data.public).map(a => ({
     title: a.data.title,
     description: a.data.description ?? '',
+    tags: a.data.tags ?? [],
+    date: a.data.date?.toISOString() ?? '',
+    body: stripMarkdown(a.body ?? ''),
     href: `${base}/marine-lab/${a.id}`,
     lab: 'Marine Lab',
+    accent: 'var(--color-sky)',
   })),
 ];
 ---
@@ -129,18 +155,19 @@ const searchIndex = [
     </script>
 
     <script define:vars={{ searchIndex }}>
-      const overlay  = document.getElementById('search-overlay');
-      const modal    = document.getElementById('search-modal');
-      const input    = document.getElementById('search-input');
-      const results  = document.getElementById('search-results');
-      const hint     = document.getElementById('search-hint');
+      const overlay   = document.getElementById('search-overlay');
+      const input     = document.getElementById('search-input');
+      const results   = document.getElementById('search-results');
+      const hint      = document.getElementById('search-hint');
+      const searchBox = document.getElementById('search-box');
       const searchBtn = document.getElementById('search-btn');
       const closeBtn  = document.getElementById('search-close');
 
       let activeIdx = -1;
 
-      function esc(s) {
-        return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      function fmtDate(iso) {
+        if (!iso) return '';
+        return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
       }
 
       function open() {
@@ -148,7 +175,9 @@ const searchIndex = [
         overlay.classList.add('open');
         input.value = '';
         activeIdx = -1;
-        render('');
+        results.innerHTML = '';
+        hint.style.display = 'none';
+        searchBox.style.borderBottom = 'none';
         requestAnimationFrame(() => input.focus());
       }
 
@@ -157,40 +186,106 @@ const searchIndex = [
         overlay.classList.remove('open');
       }
 
+      function makeCard(a) {
+        const ac = a.accent;
+        const li = document.createElement('li');
+        li.dataset.accent = ac;
+
+        const link = document.createElement('a');
+        link.href = a.href;
+        link.style.cssText = `
+          display: grid;
+          grid-template-columns: 1fr auto;
+          grid-template-rows: auto auto;
+          gap: 0.25rem 1rem;
+          padding: 0.9rem 1.1rem;
+          background: color-mix(in srgb, ${ac} 7%, transparent);
+          border: 1px solid color-mix(in srgb, ${ac} 28%, transparent);
+          border-radius: 4px;
+          text-decoration: none;
+          transition: background 0.15s, border-color 0.15s;
+        `;
+
+        const title = document.createElement('span');
+        title.textContent = a.title;
+        title.style.cssText = `font-family:var(--font-display);font-size:1rem;color:var(--color-ink);grid-column:1;grid-row:1;line-height:1.3;`;
+
+        const badge = document.createElement('span');
+        badge.textContent = a.lab;
+        badge.style.cssText = `font-size:0.62rem;padding:0.15em 0.55em;border-radius:999px;background:color-mix(in srgb,${ac} 18%,transparent);color:var(--color-ink-faded);white-space:nowrap;align-self:center;grid-column:2;grid-row:1;`;
+
+        link.appendChild(title);
+        link.appendChild(badge);
+
+        if (a.description) {
+          const desc = document.createElement('span');
+          desc.textContent = a.description;
+          desc.style.cssText = `font-size:0.82rem;color:var(--color-ink-faded);font-style:italic;grid-column:1/-1;grid-row:2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`;
+          link.appendChild(desc);
+        }
+
+        const dateStr = fmtDate(a.date);
+        if (dateStr) {
+          const time = document.createElement('time');
+          time.textContent = dateStr;
+          time.style.cssText = `font-size:0.7rem;color:var(--color-ink-faded);grid-column:1/-1;grid-row:${a.description ? 3 : 2};margin-top:0.1rem;`;
+          link.appendChild(time);
+        }
+
+        link.addEventListener('mouseenter', () => {
+          if (!li.classList.contains('active')) applyHover(link, ac, true);
+        });
+        link.addEventListener('mouseleave', () => {
+          if (!li.classList.contains('active')) applyHover(link, ac, false);
+        });
+
+        li.appendChild(link);
+        return li;
+      }
+
+      function applyHover(link, ac, on) {
+        link.style.background   = on ? `color-mix(in srgb,${ac} 14%,transparent)` : `color-mix(in srgb,${ac} 7%,transparent)`;
+        link.style.borderColor  = on ? `color-mix(in srgb,${ac} 52%,transparent)` : `color-mix(in srgb,${ac} 28%,transparent)`;
+      }
+
       function render(query) {
         const q = query.toLowerCase().trim();
-        const hits = q
-          ? searchIndex.filter(a =>
-              a.title.toLowerCase().includes(q) ||
-              a.description.toLowerCase().includes(q)
-            )
-          : searchIndex;
-
         activeIdx = -1;
         results.innerHTML = '';
 
+        if (!q) {
+          hint.style.display = 'none';
+          searchBox.style.borderBottom = 'none';
+          return;
+        }
+
+        const hits = searchIndex.filter(a =>
+          a.title.toLowerCase().includes(q) ||
+          a.description.toLowerCase().includes(q) ||
+          a.tags.some(t => t.toLowerCase().includes(q)) ||
+          a.body.toLowerCase().includes(q)
+        );
+
+        searchBox.style.borderBottom = '1px solid var(--color-sepia)';
+
         if (hits.length === 0) {
-          hint.textContent = q ? 'No results' : 'Type to search all labs';
+          hint.textContent = 'No results';
           hint.style.display = 'block';
           return;
         }
-        hint.style.display = 'none';
 
-        hits.forEach((a) => {
-          const li = document.createElement('li');
-          li.setAttribute('role', 'option');
-          li.innerHTML = `<a href="${esc(a.href)}">
-            <span class="sr-title">${esc(a.title)}</span>
-            <span class="sr-lab">${esc(a.lab)}</span>
-            ${a.description ? `<span class="sr-desc">${esc(a.description)}</span>` : ''}
-          </a>`;
-          results.appendChild(li);
-        });
+        hint.style.display = 'none';
+        hits.forEach(a => results.appendChild(makeCard(a)));
       }
 
       function setActive(idx) {
         const items = results.querySelectorAll('li');
-        items.forEach((li, i) => li.classList.toggle('active', i === idx));
+        items.forEach((li, i) => {
+          const link = li.querySelector('a');
+          const isActive = i === idx;
+          li.classList.toggle('active', isActive);
+          if (link) applyHover(link, li.dataset.accent, isActive);
+        });
         activeIdx = idx;
         if (idx >= 0) items[idx]?.scrollIntoView({ block: 'nearest' });
       }
@@ -316,7 +411,7 @@ const searchIndex = [
     align-items: center;
     gap: 0.75rem;
     padding: 0 1rem;
-    border-bottom: 1px solid var(--color-sepia);
+    transition: border-bottom 0.1s;
   }
 
   #search-input {
@@ -349,53 +444,13 @@ const searchIndex = [
 
   #search-results {
     list-style: none;
-    padding: 0.4rem;
+    padding: 0.5rem;
     margin: 0;
-    max-height: 380px;
+    max-height: 420px;
     overflow-y: auto;
-  }
-
-  #search-results li a {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    grid-template-rows: auto auto;
-    gap: 0.05rem 0.75rem;
-    padding: 0.6rem 0.75rem;
-    border-radius: 6px;
-    text-decoration: none;
-    color: var(--color-ink);
-    transition: background 0.1s;
-  }
-  #search-results li a:hover,
-  #search-results li.active a {
-    background: rgba(196, 154, 108, 0.14);
-  }
-
-  .sr-title {
-    font-size: 0.92rem;
-    font-weight: 600;
-    grid-column: 1;
-    grid-row: 1;
-  }
-  .sr-lab {
-    font-size: 0.65rem;
-    padding: 0.15em 0.55em;
-    border-radius: 999px;
-    background: rgba(196, 154, 108, 0.2);
-    color: var(--color-ink-faded);
-    grid-column: 2;
-    grid-row: 1;
-    align-self: center;
-    white-space: nowrap;
-  }
-  .sr-desc {
-    font-size: 0.78rem;
-    color: var(--color-ink-faded);
-    grid-column: 1 / -1;
-    grid-row: 2;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
   }
 
   #search-hint {
