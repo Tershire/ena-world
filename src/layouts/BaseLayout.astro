@@ -142,182 +142,172 @@ const searchIndex = [
       </footer>
     )}
 
+    <script define:vars={{ searchIndex }}>
+      window.__searchIndex = searchIndex;
+    </script>
+
     <script>
+      let activeIdx = -1;
+
+      function g(id: string) { return document.getElementById(id); }
+
+      // ── Theme: sync icon state (called on page-load and after toggle) ──
       function syncThemeIcon() {
         const dark = document.documentElement.dataset.theme === 'dark';
-        const moon = document.getElementById('icon-moon');
-        const sun  = document.getElementById('icon-sun');
-        if (moon) moon.style.display = dark ? 'none'  : 'block';
+        const moon = g('icon-moon') as HTMLElement | null;
+        const sun  = g('icon-sun')  as HTMLElement | null;
+        if (moon) moon.style.display = dark ? 'none' : 'block';
         if (sun)  sun.style.display  = dark ? 'block' : 'none';
       }
-      document.getElementById('theme-toggle')?.addEventListener('click', () => {
+
+      // Delegate from document — never needs re-binding after navigation
+      document.addEventListener('click', (e) => {
+        if (!(e.target as Element).closest('#theme-toggle')) return;
         const dark = document.documentElement.dataset.theme === 'dark';
         document.documentElement.dataset.theme = dark ? 'light' : 'dark';
         localStorage.setItem('ena-theme', document.documentElement.dataset.theme);
         syncThemeIcon();
       });
-      syncThemeIcon();
-    </script>
 
-    <script define:vars={{ searchIndex }}>
-      const overlay   = document.getElementById('search-overlay');
-      const input     = document.getElementById('search-input');
-      const results   = document.getElementById('search-results');
-      const hint      = document.getElementById('search-hint');
-      const searchBox = document.getElementById('search-box');
-      const searchBtn = document.getElementById('search-btn');
-      const closeBtn  = document.getElementById('search-close');
-
-      let activeIdx = -1;
-
-      function fmtDate(iso) {
-        if (!iso) return '';
-        return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-      }
-
-      function open() {
+      // ── Search helpers ─────────────────────────────────────────────
+      function searchOpen() {
+        const overlay = g('search-overlay');
+        const input   = g('search-input') as HTMLInputElement;
+        const results = g('search-results')!;
+        const hint    = g('search-hint') as HTMLElement;
+        const box     = g('search-box') as HTMLElement;
+        if (!overlay || !input) return;
         overlay.setAttribute('aria-hidden', 'false');
         overlay.classList.add('open');
         input.value = '';
         activeIdx = -1;
         results.innerHTML = '';
         hint.style.display = 'none';
-        searchBox.style.borderBottom = 'none';
+        box.style.borderBottom = 'none';
         requestAnimationFrame(() => input.focus());
       }
 
-      function close() {
+      function searchClose() {
+        const overlay = g('search-overlay');
+        if (!overlay) return;
         overlay.setAttribute('aria-hidden', 'true');
         overlay.classList.remove('open');
       }
 
-      function makeCard(a) {
-        const ac = a.accent;
-        const li = document.createElement('li');
-        li.dataset.accent = ac;
-
-        const link = document.createElement('a');
-        link.href = a.href;
-        link.style.cssText = `
-          display: grid;
-          grid-template-columns: 1fr auto;
-          grid-template-rows: auto auto;
-          gap: 0.25rem 1rem;
-          padding: 0.9rem 1.1rem;
-          background: color-mix(in srgb, ${ac} 7%, transparent);
-          border: 1px solid color-mix(in srgb, ${ac} 28%, transparent);
-          border-radius: 4px;
-          text-decoration: none;
-          transition: background 0.15s, border-color 0.15s;
-        `;
-
-        const title = document.createElement('span');
-        title.textContent = a.title;
-        title.style.cssText = `font-family:var(--font-display);font-size:1rem;color:var(--color-ink);grid-column:1;grid-row:1;line-height:1.3;`;
-
-        const badge = document.createElement('span');
-        badge.textContent = a.lab;
-        badge.style.cssText = `font-size:0.62rem;padding:0.15em 0.55em;border-radius:999px;background:color-mix(in srgb,${ac} 18%,transparent);color:var(--color-ink-faded);white-space:nowrap;align-self:center;grid-column:2;grid-row:1;`;
-
-        link.appendChild(title);
-        link.appendChild(badge);
-
-        if (a.description) {
-          const desc = document.createElement('span');
-          desc.textContent = a.description;
-          desc.style.cssText = `font-size:0.82rem;color:var(--color-ink-faded);font-style:italic;grid-column:1/-1;grid-row:2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`;
-          link.appendChild(desc);
-        }
-
-        const dateStr = fmtDate(a.date);
-        if (dateStr) {
-          const time = document.createElement('time');
-          time.textContent = dateStr;
-          time.style.cssText = `font-size:0.7rem;color:var(--color-ink-faded);grid-column:1/-1;grid-row:${a.description ? 3 : 2};margin-top:0.1rem;`;
-          link.appendChild(time);
-        }
-
-        link.addEventListener('mouseenter', () => {
-          if (!li.classList.contains('active')) applyHover(link, ac, true);
-        });
-        link.addEventListener('mouseleave', () => {
-          if (!li.classList.contains('active')) applyHover(link, ac, false);
-        });
-
-        li.appendChild(link);
-        return li;
-      }
-
-      function applyHover(link, ac, on) {
-        link.style.background   = on ? `color-mix(in srgb,${ac} 14%,transparent)` : `color-mix(in srgb,${ac} 7%,transparent)`;
-        link.style.borderColor  = on ? `color-mix(in srgb,${ac} 52%,transparent)` : `color-mix(in srgb,${ac} 28%,transparent)`;
-      }
-
-      function render(query) {
-        const q = query.toLowerCase().trim();
-        activeIdx = -1;
-        results.innerHTML = '';
-
-        if (!q) {
-          hint.style.display = 'none';
-          searchBox.style.borderBottom = 'none';
-          return;
-        }
-
-        const hits = searchIndex.filter(a =>
-          a.title.toLowerCase().includes(q) ||
-          a.description.toLowerCase().includes(q) ||
-          a.tags.some(t => t.toLowerCase().includes(q)) ||
-          a.body.toLowerCase().includes(q)
-        );
-
-        searchBox.style.borderBottom = '1px solid var(--color-sepia)';
-
-        if (hits.length === 0) {
-          hint.textContent = 'No results';
-          hint.style.display = 'block';
-          return;
-        }
-
-        hint.style.display = 'none';
-        hits.forEach(a => results.appendChild(makeCard(a)));
-      }
-
-      function setActive(idx) {
-        const items = results.querySelectorAll('li');
-        items.forEach((li, i) => {
-          const link = li.querySelector('a');
-          const isActive = i === idx;
-          li.classList.toggle('active', isActive);
-          if (link) applyHover(link, li.dataset.accent, isActive);
-        });
-        activeIdx = idx;
-        if (idx >= 0) items[idx]?.scrollIntoView({ block: 'nearest' });
-      }
-
-      searchBtn?.addEventListener('click', open);
-      closeBtn?.addEventListener('click', close);
-      overlay?.addEventListener('click', (e) => { if (e.target === overlay) close(); });
-      input?.addEventListener('input', (e) => render(e.target.value));
-
-      input?.addEventListener('keydown', (e) => {
-        const items = results.querySelectorAll('li');
-        if (e.key === 'ArrowDown') { e.preventDefault(); setActive(Math.min(activeIdx + 1, items.length - 1)); }
-        if (e.key === 'ArrowUp')   { e.preventDefault(); setActive(Math.max(activeIdx - 1, -1)); }
-        if (e.key === 'Enter' && activeIdx >= 0) {
-          const link = items[activeIdx]?.querySelector('a');
-          if (link) { close(); window.location.href = link.href; }
-        }
-        if (e.key === 'Escape') close();
+      // Global keyboard shortcuts — registered once
+      document.addEventListener('keydown', (e) => {
+        const overlay = g('search-overlay');
+        const tag = (document.activeElement as HTMLElement)?.tagName ?? '';
+        if (e.key === '/' && !['INPUT','TEXTAREA'].includes(tag)) { e.preventDefault(); searchOpen(); }
+        if (e.key === 'k' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); searchOpen(); }
+        if (e.key === 'Escape' && overlay?.classList.contains('open')) searchClose();
       });
 
-      document.addEventListener('keydown', (e) => {
-        if (e.key === '/' && !['INPUT','TEXTAREA'].includes(document.activeElement?.tagName ?? '')) {
-          e.preventDefault();
-          open();
+      // Re-sync icons + re-bind search elements after each navigation swap
+      document.addEventListener('astro:page-load', () => {
+        syncThemeIcon();
+
+        const si        = (window as any).__searchIndex || [];
+        const overlay   = g('search-overlay')!;
+        const input     = g('search-input') as HTMLInputElement;
+        const results   = g('search-results')!;
+        const hint      = g('search-hint') as HTMLElement;
+        const searchBox = g('search-box') as HTMLElement;
+
+        function fmtDate(iso: string) {
+          if (!iso) return '';
+          return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
         }
-        if (e.key === 'k' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); open(); }
-        if (e.key === 'Escape' && overlay?.classList.contains('open')) close();
+
+        function applyHover(link: HTMLElement, ac: string, on: boolean) {
+          link.style.background  = on ? `color-mix(in srgb,${ac} 14%,transparent)` : `color-mix(in srgb,${ac} 7%,transparent)`;
+          link.style.borderColor = on ? `color-mix(in srgb,${ac} 52%,transparent)` : `color-mix(in srgb,${ac} 28%,transparent)`;
+        }
+
+        function makeCard(a: any) {
+          const ac = a.accent;
+          const li = document.createElement('li');
+          li.dataset.accent = ac;
+          const link = document.createElement('a');
+          link.href = a.href;
+          link.style.cssText = `
+            display:grid;grid-template-columns:1fr auto;grid-template-rows:auto auto;
+            gap:0.25rem 1rem;padding:0.9rem 1.1rem;
+            background:color-mix(in srgb,${ac} 7%,transparent);
+            border:1px solid color-mix(in srgb,${ac} 28%,transparent);
+            border-radius:4px;text-decoration:none;
+            transition:background 0.15s,border-color 0.15s;
+          `;
+          const title = document.createElement('span');
+          title.textContent = a.title;
+          title.style.cssText = `font-family:var(--font-display);font-size:1rem;color:var(--color-ink);grid-column:1;grid-row:1;line-height:1.3;`;
+          const badge = document.createElement('span');
+          badge.textContent = a.lab;
+          badge.style.cssText = `font-size:0.62rem;padding:0.15em 0.55em;border-radius:999px;background:color-mix(in srgb,${ac} 18%,transparent);color:var(--color-ink-faded);white-space:nowrap;align-self:center;grid-column:2;grid-row:1;`;
+          link.appendChild(title);
+          link.appendChild(badge);
+          if (a.description) {
+            const desc = document.createElement('span');
+            desc.textContent = a.description;
+            desc.style.cssText = `font-size:0.82rem;color:var(--color-ink-faded);font-style:italic;grid-column:1/-1;grid-row:2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`;
+            link.appendChild(desc);
+          }
+          const dateStr = fmtDate(a.date);
+          if (dateStr) {
+            const time = document.createElement('time');
+            time.textContent = dateStr;
+            time.style.cssText = `font-size:0.7rem;color:var(--color-ink-faded);grid-column:1/-1;grid-row:${a.description ? 3 : 2};margin-top:0.1rem;`;
+            link.appendChild(time);
+          }
+          link.addEventListener('mouseenter', () => { if (!li.classList.contains('active')) applyHover(link, ac, true); });
+          link.addEventListener('mouseleave', () => { if (!li.classList.contains('active')) applyHover(link, ac, false); });
+          li.appendChild(link);
+          return li;
+        }
+
+        function render(query: string) {
+          const q = query.toLowerCase().trim();
+          activeIdx = -1;
+          results.innerHTML = '';
+          if (!q) { hint.style.display = 'none'; searchBox.style.borderBottom = 'none'; return; }
+          const hits = si.filter((a: any) =>
+            a.title.toLowerCase().includes(q) ||
+            a.description.toLowerCase().includes(q) ||
+            a.tags.some((t: string) => t.toLowerCase().includes(q)) ||
+            a.body.toLowerCase().includes(q)
+          );
+          searchBox.style.borderBottom = '1px solid var(--color-sepia)';
+          if (hits.length === 0) { hint.textContent = 'No results'; hint.style.display = 'block'; return; }
+          hint.style.display = 'none';
+          hits.forEach((a: any) => results.appendChild(makeCard(a)));
+        }
+
+        function setActive(idx: number) {
+          const items = results.querySelectorAll('li');
+          items.forEach((li, i) => {
+            const link = li.querySelector('a') as HTMLElement;
+            const on = i === idx;
+            li.classList.toggle('active', on);
+            if (link) applyHover(link, (li as HTMLElement).dataset.accent!, on);
+          });
+          activeIdx = idx;
+          if (idx >= 0) (items[idx] as HTMLElement)?.scrollIntoView({ block: 'nearest' });
+        }
+
+        g('search-btn')?.addEventListener('click', searchOpen);
+        g('search-close')?.addEventListener('click', searchClose);
+        overlay?.addEventListener('click', (e) => { if (e.target === overlay) searchClose(); });
+        input?.addEventListener('input', () => render(input.value));
+        input?.addEventListener('keydown', (e) => {
+          const items = results.querySelectorAll('li');
+          if (e.key === 'ArrowDown') { e.preventDefault(); setActive(Math.min(activeIdx + 1, items.length - 1)); }
+          if (e.key === 'ArrowUp')   { e.preventDefault(); setActive(Math.max(activeIdx - 1, -1)); }
+          if (e.key === 'Enter' && activeIdx >= 0) {
+            const link = items[activeIdx]?.querySelector('a') as HTMLAnchorElement;
+            if (link) { searchClose(); window.location.href = link.href; }
+          }
+          if (e.key === 'Escape') searchClose();
+        });
       });
     </script>
   </body>

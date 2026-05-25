@@ -313,7 +313,7 @@ const hasNav = navArticles && navArticles.length > 0 && navBase;
     padding: 1.25rem;
   }
 
-  .lab-content { flex: 1; min-width: 0; }
+  .lab-content { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 
   /* ── Right depth ruler ────────────────────────────── */
   #depth-ruler {
@@ -413,6 +413,7 @@ const hasNav = navArticles && navArticles.length > 0 && navBase;
 
   /* ── Page grid ────────────────────────────────────── */
   .article-page {
+    flex: 1;
     display: grid;
     grid-template-columns: 1fr;
     max-width: 1160px;

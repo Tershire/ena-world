@@ -223,9 +223,10 @@ const hasNav = navArticles && navArticles.length > 0 && navBase;
   }
 
   /* ── Lab content (article + TOC grid) ────────────── */
-  .lab-content { flex: 1; min-width: 0; }
+  .lab-content { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 
   .article-page {
+    flex: 1;
     display: grid;
     grid-template-columns: 1fr;
     max-width: 1160px;
