@@ -16,7 +16,7 @@ or
 $q=(q_{0},\; \textbf{q}) = (q_{0},\; q_{1},\; q_{2},\; q_{3})$
 # operations
 
-## addition ($+$)
+## addition
 두 쿼터니언 $a$, $b$에 대해 다음이 성립한다.
 <!-- left -->
 $$
@@ -25,7 +25,7 @@ a_{0} + b_{0} \\
 \textbf{a} + \textbf{b}
 \end{pmatrix}
 $$
-## multiplication ($⊙$)
+## multiplication
 Hamilton이 정의한 곱셈은 다음과 같다.
 
 $$
