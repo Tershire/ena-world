@@ -435,6 +435,239 @@ function buildPalmTrees(positions: THREE.Vector3[]): THREE.Group {
   return g;
 }
 
+// ── Coastal pier ─────────────────────────────────────────
+function buildCoastalPier(
+  stationVec: THREE.Vector3,
+  getHeight: (nx: number, ny: number, nz: number) => number,
+): { group: THREE.Group; lampMat: THREE.MeshLambertMaterial } {
+  const group   = new THREE.Group();
+  const worldUp = new THREE.Vector3(0, 1, 0);
+  const n       = stationVec.clone().normalize();
+  const rt      = new THREE.Vector3().crossVectors(n, worldUp).normalize();
+  const fw      = new THREE.Vector3().crossVectors(rt, n).normalize();
+
+  // Prefer equatorial (east/west) directions so shore stays tropical; -fw (south) is last resort
+  const dirs: THREE.Vector3[] = [
+    rt.clone(),
+    rt.clone().negate(),
+    new THREE.Vector3().addScaledVector(fw, -0.5).addScaledVector(rt,  0.87).normalize(),
+    new THREE.Vector3().addScaledVector(fw, -0.5).addScaledVector(rt, -0.87).normalize(),
+    new THREE.Vector3().addScaledVector(fw,  0.5).addScaledVector(rt,  0.87).normalize(),
+    new THREE.Vector3().addScaledVector(fw,  0.5).addScaledVector(rt, -0.87).normalize(),
+    fw.clone().negate(),
+  ];
+
+  let shoreVec: THREE.Vector3 | null = null;
+  let outDir:   THREE.Vector3 | null = null;
+
+  outer: for (const dir of dirs) {
+    for (let d = 0.020; d < 0.38; d += 0.004) {
+      const s = stationVec.clone().addScaledVector(dir, d).normalize();
+      if (getHeight(s.x, s.y, s.z) <= 0.003) {
+        const land = stationVec.clone().addScaledVector(dir, Math.max(0.005, d - 0.014)).normalize();
+        if (getHeight(land.x, land.y, land.z) > 0.001) {
+          shoreVec = land;
+          outDir   = dir.clone();
+          break outer;
+        }
+      }
+    }
+  }
+
+  const lampMat = new THREE.MeshLambertMaterial({
+    color: 0xffe8a0, emissive: new THREE.Color(0xffcc44), emissiveIntensity: 0,
+  });
+  if (!shoreVec || !outDir) return { group, lampMat };
+
+  const hS    = getHeight(shoreVec.x, shoreVec.y, shoreVec.z);
+  const baseR = 1.0 + Math.max(hS, 0.001);
+
+  // Local pier axes: pUp = radial outward, pFwd = toward water, pRt = sideways
+  const pUp  = shoreVec.clone();
+  const pFwd = outDir.clone()
+    .sub(pUp.clone().multiplyScalar(outDir.dot(pUp)))
+    .normalize();
+  const pRt  = new THREE.Vector3().crossVectors(pUp, pFwd).normalize();
+  const quat = new THREE.Quaternion().setFromRotationMatrix(
+    new THREE.Matrix4().makeBasis(pRt, pUp, pFwd),
+  );
+
+  const place = (
+    geo: THREE.BufferGeometry, mat: THREE.MeshLambertMaterial,
+    dr: number, dy: number, df: number,
+  ) => {
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position
+      .copy(pUp).multiplyScalar(baseR + dy)
+      .addScaledVector(pRt,  dr)
+      .addScaledVector(pFwd, df);
+    mesh.quaternion.copy(quat);
+    group.add(mesh);
+  };
+
+  const LEN    = 0.145;
+  const W      = 0.026;
+  const THICK  = 0.005;
+  const N_BAYS = 4;
+  const STEP   = LEN / N_BAYS;
+  const POST_R = 0.0036;
+  const POST_H = 0.032;
+  const PLAT_W = W * 2.4;
+  const PLAT_D = W * 2.6;
+
+  const concreteMat  = new THREE.MeshLambertMaterial({ color: 0xb8b2aa });
+  const pileMat      = new THREE.MeshLambertMaterial({ color: 0x9a9490 });
+  const steelMat     = new THREE.MeshLambertMaterial({ color: 0x5c6470 });
+  const annexWallMat = new THREE.MeshLambertMaterial({ color: 0xe2e0d8 });
+  const annexRoofMat = new THREE.MeshLambertMaterial({ color: 0x2a4060 });
+  const winMat       = new THREE.MeshLambertMaterial({ color: 0x7aaec8 });
+  const craneMat     = new THREE.MeshLambertMaterial({ color: 0xe8a830 });
+  const boatMat      = new THREE.MeshLambertMaterial({ color: 0x2e3c4c });
+  const boatTrimMat  = new THREE.MeshLambertMaterial({ color: 0xcac0a8 });
+
+  // ── Main deck ─────────────────────────────────
+  const deckGeo = new THREE.BoxGeometry(W, THICK, LEN);
+  deckGeo.translate(0, THICK / 2, LEN / 2);
+  place(deckGeo, concreteMat, 0, 0, 0);
+
+  // ── Pilings ───────────────────────────────────
+  const pilingBase = new THREE.CylinderGeometry(POST_R, POST_R * 1.25, POST_H, 8);
+  pilingBase.translate(0, -POST_H / 2, 0);
+  for (let b = 0; b <= N_BAYS; b++) {
+    for (const side of [-1, 1]) {
+      place(pilingBase.clone(), pileMat, side * (W / 2 + POST_R), 0, b * STEP);
+    }
+  }
+
+  // ── Steel handrail ────────────────────────────
+  const rPostGeo = new THREE.CylinderGeometry(0.0011, 0.0011, 0.018, 5);
+  rPostGeo.translate(0, THICK + 0.009, 0);
+  const rBarGeo = new THREE.BoxGeometry(0.0010, 0.0010, LEN);
+  rBarGeo.translate(0, THICK + 0.018, LEN / 2);
+  for (const side of [-1, 1]) {
+    const xOff = side * (W / 2 - 0.002);
+    for (let b = 0; b <= N_BAYS; b++) place(rPostGeo.clone(), steelMat, xOff, 0, b * STEP);
+    place(rBarGeo.clone(), steelMat, xOff, 0, 0);
+  }
+
+  // ── Mid-pier utility cabinet ──────────────────
+  const cabGeo = new THREE.BoxGeometry(0.013, 0.018, 0.016);
+  cabGeo.translate(0, 0.009 + THICK, 0);
+  place(cabGeo, steelMat, W / 2 - 0.007, 0, LEN * 0.52);
+
+  // ── End platform ──────────────────────────────
+  const platGeo = new THREE.BoxGeometry(PLAT_W, THICK, PLAT_D);
+  platGeo.translate(0, THICK / 2, LEN + PLAT_D / 2);
+  place(platGeo, concreteMat, 0, 0, 0);
+
+  // Platform corner pilings
+  for (const dr of [-1, 1]) for (const df of [0, 1]) {
+    place(pilingBase.clone(), pileMat, dr * PLAT_W / 2, 0, LEN + df * PLAT_D);
+  }
+
+  // ── Mooring cleats ────────────────────────────
+  const cleatHGeo = new THREE.BoxGeometry(0.009, 0.003, 0.003);
+  cleatHGeo.translate(0, THICK + 0.0015, 0);
+  const cleatVGeo = new THREE.BoxGeometry(0.002, 0.005, 0.003);
+  cleatVGeo.translate(0, THICK + 0.0025, 0);
+  for (const side of [-1, 1]) {
+    for (const zf of [0.22, 0.78]) {
+      place(cleatHGeo.clone(), steelMat, side * PLAT_W * 0.42, 0, LEN + PLAT_D * zf);
+      place(cleatVGeo.clone(), steelMat, side * PLAT_W * 0.42, 0, LEN + PLAT_D * zf);
+    }
+  }
+
+  // ── Shelter canopy over end platform ──────────
+  const CANOPY_H = 0.038;
+  const cpX = PLAT_W * 0.38;
+  const cpGeo = new THREE.CylinderGeometry(0.0012, 0.0014, CANOPY_H, 5);
+  cpGeo.translate(0, CANOPY_H / 2 + THICK, 0);
+  for (const dr of [-1, 1]) {
+    place(cpGeo.clone(), steelMat, dr * cpX, 0, LEN + PLAT_D * 0.14);
+    place(cpGeo.clone(), steelMat, dr * cpX, 0, LEN + PLAT_D * 0.82);
+  }
+  const canRoofGeo = new THREE.BoxGeometry(PLAT_W * 0.84, 0.004, PLAT_D * 0.72);
+  canRoofGeo.translate(0, THICK + CANOPY_H + 0.002, 0);
+  place(canRoofGeo, annexRoofMat, 0, 0, LEN + PLAT_D * 0.48);
+
+  // ── Lamp post ─────────────────────────────────
+  const poleGeo = new THREE.CylinderGeometry(0.0013, 0.0016, 0.050, 6);
+  poleGeo.translate(0, 0.025, 0);
+  place(poleGeo, steelMat, -PLAT_W * 0.38, THICK, LEN + PLAT_D * 0.48);
+  const armGeo = new THREE.BoxGeometry(0.022, 0.0012, 0.0012);
+  armGeo.translate(0.011, 0.051, 0);
+  place(armGeo, steelMat, -PLAT_W * 0.38, THICK, LEN + PLAT_D * 0.48);
+  const globeGeo = new THREE.SphereGeometry(0.0042, 6, 5);
+  globeGeo.translate(0.022, 0.052, 0);
+  place(globeGeo, lampMat, -PLAT_W * 0.38, THICK, LEN + PLAT_D * 0.48);
+
+  // ── Crane ─────────────────────────────────────
+  const CRANE_H  = 0.064;
+  const CRANE_BM = 0.042;
+  const craneMastGeo = new THREE.BoxGeometry(0.006, CRANE_H, 0.006);
+  craneMastGeo.translate(0, CRANE_H / 2 + THICK, 0);
+  place(craneMastGeo, craneMat, PLAT_W * 0.38, 0, LEN + PLAT_D * 0.28);
+  const boomGeo = new THREE.BoxGeometry(0.004, 0.004, CRANE_BM);
+  boomGeo.translate(0, CRANE_H + THICK - 0.002, CRANE_BM / 2);
+  place(boomGeo, craneMat, PLAT_W * 0.38, 0, LEN + PLAT_D * 0.28);
+  const cableGeo = new THREE.CylinderGeometry(0.0006, 0.0006, CRANE_H * 0.55, 3);
+  cableGeo.translate(0, -CRANE_H * 0.275, 0);
+  place(cableGeo, steelMat, PLAT_W * 0.38, THICK + CRANE_H - 0.002, LEN + PLAT_D * 0.28 + CRANE_BM);
+  const hookGeo = new THREE.BoxGeometry(0.009, 0.0025, 0.007);
+  hookGeo.translate(0, 0, 0);
+  place(hookGeo, steelMat, PLAT_W * 0.38, THICK + CRANE_H * 0.45 - 0.004, LEN + PLAT_D * 0.28 + CRANE_BM);
+
+  // ── Shore annex building ───────────────────────
+  const AW = 0.058;
+  const AH = 0.034;
+  const AD = 0.038;
+  const ASIDE = W / 2 + 0.012 + AW / 2;
+
+  const aBodyGeo = new THREE.BoxGeometry(AW, AH, AD);
+  aBodyGeo.translate(0, AH / 2, 0);
+  place(aBodyGeo, annexWallMat, ASIDE, 0, AD / 2 + 0.006);
+
+  // Flat roof with parapet
+  const aRoofGeo = new THREE.BoxGeometry(AW + 0.006, 0.007, AD + 0.006);
+  place(aRoofGeo, annexRoofMat, ASIDE, AH + 0.0035, AD / 2 + 0.006);
+
+  // Windows on pier-facing side (df ≈ 0)
+  const winGeo = new THREE.BoxGeometry(0.012, 0.014, 0.001);
+  winGeo.translate(0, AH * 0.56, 0.001);
+  for (const wr of [-1, 1]) {
+    place(winGeo.clone(), winMat, ASIDE + wr * 0.016, 0, 0.006);
+  }
+
+  // Door
+  const doorGeo = new THREE.BoxGeometry(0.011, 0.024, 0.001);
+  doorGeo.translate(0, 0.012, 0.001);
+  place(doorGeo, steelMat, ASIDE, 0, 0.006);
+
+  // Sign panel above door
+  const signGeo = new THREE.BoxGeometry(0.028, 0.008, 0.001);
+  signGeo.translate(0, AH * 0.84, 0.001);
+  place(signGeo, new THREE.MeshLambertMaterial({ color: 0x1a3550 }), ASIDE, 0, 0.006);
+
+  // Antenna mast on roof
+  const antGeo = new THREE.CylinderGeometry(0.0009, 0.0009, 0.028, 4);
+  antGeo.translate(0, 0.014, 0);
+  place(antGeo, steelMat, ASIDE - AW * 0.30, AH + 0.007, AD * 0.28 + 0.006);
+
+  // ── Small boat tied alongside pier ────────────
+  const BOAT_L  = 0.066;
+  const BOAT_BW = 0.021;
+  const BOAT_H  = 0.012;
+  const boatHullGeo = new THREE.CapsuleGeometry(BOAT_BW / 2, BOAT_L - BOAT_BW, 3, 8);
+  boatHullGeo.rotateX(Math.PI / 2);
+  boatHullGeo.translate(0, -BOAT_H * 0.3, 0);
+  place(boatHullGeo, boatMat, -(W / 2 + BOAT_BW / 2 + 0.007), 0, LEN * 0.48 + BOAT_L * 0.15);
+  const boatRimGeo = new THREE.BoxGeometry(BOAT_BW, 0.004, BOAT_L * 0.72);
+  boatRimGeo.translate(0, BOAT_H * 0.15, 0);
+  place(boatRimGeo, boatTrimMat, -(W / 2 + BOAT_BW / 2 + 0.007), 0, LEN * 0.48 + BOAT_L * 0.15);
+
+  return { group, lampMat };
+}
+
 // ── Research station buildings ───────────────────────────
 function buildStation(
   s: Station,
@@ -1071,6 +1304,13 @@ export default function PlanetGlobe({ base }: { base: string }) {
       scene.add(light);
       stationLights.push(light);
     });
+
+    // Coastal pier at Marine Lab shoreline
+    const marineVec = stationUnitVec(STATIONS.find(s => s.id === 'marine-lab')!);
+    const { group: pierGroup, lampMat: pierLampMat } = buildCoastalPier(marineVec, getHeight);
+    scene.add(pierGroup);
+    stationGroups.push(pierGroup);       // rotates with planet, hides in flat-map mode
+    stationEmissiveMats.push(pierLampMat); // lamp glows in dark mode
 
     // ── Animated airplane ──────────────────────────
     const aeroStation = STATIONS.find(s => s.id === 'aerospace-lab')!;
