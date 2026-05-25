@@ -439,7 +439,7 @@ function buildPalmTrees(positions: THREE.Vector3[]): THREE.Group {
 function buildCoastalPier(
   stationVec: THREE.Vector3,
   getHeight: (nx: number, ny: number, nz: number) => number,
-): { group: THREE.Group; lampMat: THREE.MeshLambertMaterial } {
+): { group: THREE.Group; lampMat: THREE.MeshLambertMaterial; shoreVec: THREE.Vector3 | null; outDir: THREE.Vector3 | null } {
   const group   = new THREE.Group();
   const worldUp = new THREE.Vector3(0, 1, 0);
   const n       = stationVec.clone().normalize();
@@ -477,7 +477,7 @@ function buildCoastalPier(
   const lampMat = new THREE.MeshLambertMaterial({
     color: 0xffe8a0, emissive: new THREE.Color(0xffcc44), emissiveIntensity: 0,
   });
-  if (!shoreVec || !outDir) return { group, lampMat };
+  if (!shoreVec || !outDir) return { group, lampMat, shoreVec: null, outDir: null };
 
   const hS    = getHeight(shoreVec.x, shoreVec.y, shoreVec.z);
   const baseR = 1.0 + Math.max(hS, 0.001);
@@ -665,7 +665,7 @@ function buildCoastalPier(
   boatRimGeo.translate(0, BOAT_H * 0.15, 0);
   place(boatRimGeo, boatTrimMat, -(W / 2 + BOAT_BW / 2 + 0.007), 0, LEN * 0.48 + BOAT_L * 0.15);
 
-  return { group, lampMat };
+  return { group, lampMat, shoreVec, outDir };
 }
 
 // ── Research station buildings ───────────────────────────
@@ -1024,6 +1024,60 @@ function buildAuroraCrown(): THREE.BufferGeometry {
   return geo;
 }
 
+// ── Animated submarine ───────────────────────────────────
+function buildSubmarine(): { group: THREE.Group } {
+  const g         = new THREE.Group();
+  const hullMat   = new THREE.MeshLambertMaterial({ color: 0x253050 });
+  const towerMat  = new THREE.MeshLambertMaterial({ color: 0xd4a820 }); // yellow sail — easy to spot
+  const propMat   = new THREE.MeshLambertMaterial({ color: 0x8898b0 });
+  const accentMat = new THREE.MeshLambertMaterial({ color: 0xd4a820 });
+
+  // Hull — 1.5× the plane's fuselage scale
+  const hullGeo = new THREE.CapsuleGeometry(0.013, 0.080, 4, 8);
+  hullGeo.rotateX(Math.PI / 2);
+  g.add(new THREE.Mesh(hullGeo, hullMat));
+
+  // Yellow hull band near the bow
+  const bandGeo = new THREE.CylinderGeometry(0.0135, 0.0135, 0.007, 8, 1, true);
+  bandGeo.rotateX(Math.PI / 2);
+  bandGeo.translate(0, 0, 0.012);
+  g.add(new THREE.Mesh(bandGeo, accentMat));
+
+  // Conning tower (sail) — bright yellow for visibility
+  const towerGeo = new THREE.BoxGeometry(0.013, 0.022, 0.026);
+  towerGeo.translate(0, 0.017, 0.009);
+  g.add(new THREE.Mesh(towerGeo, towerMat));
+
+  // Periscope
+  const periGeo = new THREE.CylinderGeometry(0.0015, 0.0015, 0.020, 4);
+  periGeo.translate(0.002, 0.040, 0.008);
+  g.add(new THREE.Mesh(periGeo, towerMat));
+
+  // Forward diving planes (wide — creates visible silhouette)
+  const fPlaneGeo = new THREE.BoxGeometry(0.042, 0.002, 0.009);
+  fPlaneGeo.translate(0, 0, 0.022);
+  g.add(new THREE.Mesh(fPlaneGeo, hullMat));
+
+  // Stern planes
+  const sPlaneGeo = new THREE.BoxGeometry(0.028, 0.002, 0.007);
+  sPlaneGeo.translate(0, 0, -0.038);
+  g.add(new THREE.Mesh(sPlaneGeo, hullMat));
+
+  // Vertical tail fin
+  const vFinGeo = new THREE.BoxGeometry(0.002, 0.018, 0.014);
+  vFinGeo.translate(0, 0.010, -0.040);
+  g.add(new THREE.Mesh(vFinGeo, hullMat));
+
+  // Propeller (two crossed blades)
+  for (const horiz of [true, false]) {
+    const bGeo = new THREE.BoxGeometry(horiz ? 0.024 : 0.002, horiz ? 0.002 : 0.024, 0.004);
+    bGeo.translate(0, 0, -0.055);
+    g.add(new THREE.Mesh(bGeo, propMat));
+  }
+
+  return { group: g };
+}
+
 // ── Animated airplane ────────────────────────────────────
 function smoothStep(e0: number, e1: number, x: number): number {
   const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0)));
@@ -1307,10 +1361,39 @@ export default function PlanetGlobe({ base }: { base: string }) {
 
     // Coastal pier at Marine Lab shoreline
     const marineVec = stationUnitVec(STATIONS.find(s => s.id === 'marine-lab')!);
-    const { group: pierGroup, lampMat: pierLampMat } = buildCoastalPier(marineVec, getHeight);
+    const { group: pierGroup, lampMat: pierLampMat, shoreVec: pierShoreVec, outDir: pierOutDir } =
+      buildCoastalPier(marineVec, getHeight);
     scene.add(pierGroup);
-    stationGroups.push(pierGroup);       // rotates with planet, hides in flat-map mode
-    stationEmissiveMats.push(pierLampMat); // lamp glows in dark mode
+    stationGroups.push(pierGroup);
+    stationEmissiveMats.push(pierLampMat);
+
+    // ── Animated submarine ─────────────────────────
+    // Dock at the seaward end of the pier; fall back to marineVec if shore search failed
+    const subDockVec = (pierShoreVec && pierOutDir)
+      ? pierShoreVec.clone().addScaledVector(pierOutDir, 0.16).normalize()
+      : marineVec.clone();
+    const subOrbitRight = new THREE.Vector3().crossVectors(subDockVec, new THREE.Vector3(0, 1, 0)).normalize();
+    const SUB_SPEED   = (Math.PI * 2) / 60;   // 60 s per full orbit
+    const SUB_DEPTH   = 0.984;                 // snorkel depth: tower pokes just above ocean
+    const SUB_SURF_R  = 1.016;                 // fully surfaced: hull clear of ocean
+    const SUB_DOCK_R  = 1.016;
+    const SUB_DEPART  = 0.32;                  // angular span to dive after departing
+    const SUB_ARRIVE  = 0.32;                  // angular span to surface before arriving
+
+    const _ssSide = new THREE.Vector3().crossVectors(subDockVec, subOrbitRight).normalize();
+    const _ssFwdO = new THREE.Vector3().crossVectors(_ssSide, subDockVec).normalize();
+    const subDockQ = new THREE.Quaternion().setFromRotationMatrix(
+      new THREE.Matrix4().makeBasis(_ssSide, subDockVec, _ssFwdO)
+    );
+
+    const { group: subGroup } = buildSubmarine();
+    scene.add(subGroup);
+
+    let subPhase: 'docked' | 'underway' = 'docked';
+    let subOrbitAngle = 0;
+    let subWaitTimer  = 4.0 + Math.random() * 6.0;
+    let subSurfStart  = 0;
+    let subSurfEnd    = 0;
 
     // ── Animated airplane ──────────────────────────
     const aeroStation = STATIONS.find(s => s.id === 'aerospace-lab')!;
@@ -1568,6 +1651,7 @@ export default function PlanetGlobe({ base }: { base: string }) {
       });
       stationGroups.forEach(g => { g.visible = alpha > 0.01; });
       planeGroup.visible = alpha > 0.01;
+      if (alpha <= 0.01) subGroup.visible = false;
       parrots.forEach(p => { p.group.visible = alpha > 0.01; });
       dolphins.forEach(d => { d.group.visible = alpha > 0.01; });
       orbs.forEach(orb => { orb.visible = alpha > 0.01; });
@@ -1797,6 +1881,69 @@ export default function PlanetGlobe({ base }: { base: string }) {
         const blinkOn = Math.floor(t * 1.5) % 2 === 0;
         (navGreen.material as THREE.MeshBasicMaterial).opacity = blinkOn ? 1.0 : 0.0;
         (navRed.material   as THREE.MeshBasicMaterial).opacity = blinkOn ? 1.0 : 0.0;
+      }
+
+      // ── Animated submarine ───────────────────────────
+      if (mapBlend < 0.01) {
+        const TWO_PI_S = Math.PI * 2;
+        if (subPhase === 'docked') {
+          subWaitTimer -= dt;
+          subGroup.position.copy(subDockVec.clone().multiplyScalar(SUB_DOCK_R).applyQuaternion(planetQuat));
+          subGroup.quaternion.copy(planetQuat).multiply(subDockQ);
+          subGroup.visible = true;
+          if (subWaitTimer <= 0) {
+            subPhase = 'underway';
+            subOrbitAngle = 0;
+            const frac = 0.35 + Math.random() * 0.30;
+            subSurfStart = frac * TWO_PI_S;
+            subSurfEnd   = subSurfStart + 0.10 * TWO_PI_S;
+          }
+        } else {
+          subOrbitAngle += SUB_SPEED * dt;
+          const θ = subOrbitAngle;
+
+          let surfBlend = 0;
+          if (θ < SUB_DEPART) {
+            surfBlend = 1 - smoothStep(0, SUB_DEPART, θ);
+          } else if (θ >= subSurfStart && θ <= subSurfEnd) {
+            const halfRamp = (subSurfEnd - subSurfStart) * 0.25;
+            if (θ < subSurfStart + halfRamp)
+              surfBlend = smoothStep(subSurfStart, subSurfStart + halfRamp, θ);
+            else if (θ > subSurfEnd - halfRamp)
+              surfBlend = 1 - smoothStep(subSurfEnd - halfRamp, subSurfEnd, θ);
+            else
+              surfBlend = 1;
+          } else if (θ > TWO_PI_S - SUB_ARRIVE) {
+            surfBlend = smoothStep(TWO_PI_S - SUB_ARRIVE, TWO_PI_S, θ);
+          }
+
+          const r = SUB_DEPTH + (SUB_SURF_R - SUB_DEPTH) * surfBlend;
+          const cosT = Math.cos(θ);
+          const sinT = Math.sin(θ);
+          const up = new THREE.Vector3(
+            cosT * subDockVec.x + sinT * subOrbitRight.x,
+            cosT * subDockVec.y + sinT * subOrbitRight.y,
+            cosT * subDockVec.z + sinT * subOrbitRight.z,
+          );
+          const fwd = new THREE.Vector3(
+            -sinT * subDockVec.x + cosT * subOrbitRight.x,
+            -sinT * subDockVec.y + cosT * subOrbitRight.y,
+            -sinT * subDockVec.z + cosT * subOrbitRight.z,
+          );
+          subGroup.visible = true;
+          subGroup.position.copy(up.clone().multiplyScalar(r).applyQuaternion(planetQuat));
+          const sd   = new THREE.Vector3().crossVectors(up, fwd).normalize();
+          const fwdO = new THREE.Vector3().crossVectors(sd, up).normalize();
+          subGroup.quaternion.copy(planetQuat).multiply(
+            new THREE.Quaternion().setFromRotationMatrix(
+              new THREE.Matrix4().makeBasis(sd, up, fwdO)
+            )
+          );
+          if (θ >= TWO_PI_S) {
+            subPhase = 'docked';
+            subWaitTimer = 8 + Math.random() * 12;
+          }
+        }
       }
 
       // ── Orbs ────────────────────────────────────────
