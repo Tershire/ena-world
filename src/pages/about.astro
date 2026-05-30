@@ -1,6 +1,5 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 ---
 
 <BaseLayout title="About">
@@ -17,22 +16,22 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       </header>
 
       <a href="https://tershire.github.io/" class="portal" target="_blank" rel="noopener noreferrer">
-        <div class="portal-inner">
-          <svg class="portal-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="2" y1="12" x2="22" y2="12"/>
-            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-          </svg>
-          <div class="portal-text">
-            <span class="portal-label">The Cartographer</span>
-            <span class="portal-url">tershire.github.io</span>
+          <div class="portal-inner">
+            <svg class="portal-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="2" y1="12" x2="22" y2="12"/>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+            </svg>
+            <div class="portal-text">
+              <span class="portal-label">Tershire</span>
+              <span class="portal-url">tershire.github.io</span>
+            </div>
+            <svg class="portal-arrow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12"/>
+              <polyline points="12 5 19 12 12 19"/>
+            </svg>
           </div>
-          <svg class="portal-arrow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="5" y1="12" x2="19" y2="12"/>
-            <polyline points="12 5 19 12 12 19"/>
-          </svg>
-        </div>
-      </a>
+        </a>
     </div>
   </div>
 </BaseLayout>
@@ -82,20 +81,55 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     margin: 0;
   }
 
-  /* ── Portal card ─────────────────────────────────── */
+  /* ── Rainbow border ───────────────────────────────── */
+  @property --rainbow-angle {
+    syntax: '<angle>';
+    initial-value: 0deg;
+    inherits: false;
+  }
+
+  @keyframes rainbow-spin {
+    to { --rainbow-angle: 360deg; }
+  }
+
+  @keyframes portal-glow {
+    0%   { box-shadow: 0 0 10px 3px rgba(255, 120, 120, 0.5), 0 6px 20px rgba(0,0,0,0.12); }
+    14%  { box-shadow: 0 0 10px 3px rgba(255, 180,  50, 0.5), 0 6px 20px rgba(0,0,0,0.12); }
+    28%  { box-shadow: 0 0 10px 3px rgba(100, 220, 100, 0.5), 0 6px 20px rgba(0,0,0,0.12); }
+    42%  { box-shadow: 0 0 10px 3px rgba( 50, 160, 255, 0.5), 0 6px 20px rgba(0,0,0,0.12); }
+    57%  { box-shadow: 0 0 10px 3px rgba(160,  50, 255, 0.5), 0 6px 20px rgba(0,0,0,0.12); }
+    71%  { box-shadow: 0 0 10px 3px rgba(255,  50, 200, 0.5), 0 6px 20px rgba(0,0,0,0.12); }
+    100% { box-shadow: 0 0 10px 3px rgba(255, 120, 120, 0.5), 0 6px 20px rgba(0,0,0,0.12); }
+  }
+
+  /* ── Portal card ──────────────────────────────────── */
+  /*
+   * background-clip trick:
+   *   padding-box layer (top)   = solid fill, covers the interior
+   *   border-box layer (bottom) = conic-gradient, peeks through only in border ring
+   * Default: solid sepia border COVERS the gradient underneath.
+   * Hover:   border-color → transparent, revealing the rotating rainbow.
+   */
   .portal {
     display: block;
     text-decoration: none;
-    border: 1px solid var(--color-sepia);
+    border: 2px solid var(--color-sepia);
     border-radius: 8px;
-    padding: 1.5rem 1.75rem;
-    background: var(--bg-panel);
-    transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+    padding: calc(1.5rem - 2px) calc(1.75rem - 2px);
+    background:
+      linear-gradient(var(--color-parchment), var(--color-parchment)) padding-box,
+      conic-gradient(
+        from var(--rainbow-angle),
+        #ff4d4d, #ff9900, #ffe033, #44d444, #4499ff, #9944ff, #ff4d4d
+      ) border-box;
+    animation: rainbow-spin 2.5s linear infinite paused;
+    transition: border-color 0.1s, transform 0.2s;
   }
+
   .portal:hover {
-    border-color: var(--color-rust);
-    box-shadow: 0 4px 20px rgba(139, 58, 42, 0.12);
+    border-color: transparent;
     transform: translateY(-2px);
+    animation: rainbow-spin 2.5s linear infinite, portal-glow 2.5s linear infinite;
   }
 
   .portal-inner {
@@ -140,6 +174,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     opacity: 0.7;
     transition: opacity 0.15s, transform 0.2s;
   }
+
   .portal:hover .portal-arrow {
     opacity: 1;
     transform: translateX(3px);
