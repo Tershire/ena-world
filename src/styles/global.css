@@ -40,6 +40,46 @@
   --color-sky:       #6aaabf;
 }
 
+/* ── Mobile nav overlay ─────────────────────────────────── */
+@keyframes nav-slide-in {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+
+@media (max-width: 1059px) {
+  #nav-sidebar.nav-open,
+  .index-nav.nav-open {
+    display: block !important;
+    position: fixed;
+    top: 52px;
+    left: 0;
+    bottom: 0;
+    width: min(280px, 85vw);
+    z-index: 300;
+    overflow-y: auto;
+    background: var(--bg-panel);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.28);
+    animation: nav-slide-in 0.22s ease;
+  }
+
+  /* nav-sticky becomes normal flow inside the fixed overlay */
+  #nav-sidebar.nav-open .nav-sticky,
+  .index-nav.nav-open .nav-sticky {
+    position: relative;
+    top: auto;
+    max-height: none;
+    overflow-y: visible;
+  }
+}
+
+.nav-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 299;
+  background: rgba(0, 0, 0, 0.38);
+  backdrop-filter: blur(1px);
+}
+
 /* ── Base ──────────────────────────────────────────────── */
 html {
   scroll-behavior: smooth;

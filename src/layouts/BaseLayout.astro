@@ -91,6 +91,11 @@ const searchIndex = [
   <body>
     <nav class="site-nav">
       <a href={base} class="nav-home">ENA World</a>
+      <button id="mobile-nav-btn" aria-label="Open navigation" aria-expanded="false">
+        <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
       <div class="nav-right">
         <div class="nav-links">
           <div class="nav-dropdown">
@@ -216,6 +221,36 @@ const searchIndex = [
       // Re-sync icons + re-bind search elements after each navigation swap
       document.addEventListener('astro:page-load', () => {
         syncThemeIcon();
+
+        // ── Mobile nav toggle ──────────────────────────────
+        const sidebar   = document.querySelector<HTMLElement>('#nav-sidebar, .index-nav');
+        const mobileBtn = g('mobile-nav-btn') as HTMLButtonElement | null;
+        if (mobileBtn) {
+          mobileBtn.classList.toggle('active', !!sidebar);
+          if (sidebar) {
+            let backdrop: HTMLElement | null = null;
+            function openNav() {
+              sidebar!.classList.add('nav-open');
+              mobileBtn!.setAttribute('aria-expanded', 'true');
+              backdrop = document.createElement('div');
+              backdrop.className = 'nav-backdrop';
+              document.body.appendChild(backdrop);
+              backdrop.addEventListener('click', closeNav, { once: true });
+            }
+            function closeNav() {
+              sidebar!.classList.remove('nav-open');
+              mobileBtn!.setAttribute('aria-expanded', 'false');
+              backdrop?.remove();
+              backdrop = null;
+            }
+            mobileBtn.addEventListener('click', () => {
+              sidebar!.classList.contains('nav-open') ? closeNav() : openNav();
+            });
+            sidebar.querySelectorAll('a').forEach((a) => {
+              a.addEventListener('click', closeNav);
+            });
+          }
+        }
 
         const si        = (window as any).__searchIndex || [];
         const overlay   = g('search-overlay')!;
@@ -348,6 +383,22 @@ const searchIndex = [
     color: var(--color-ink);
     text-decoration: none;
     letter-spacing: 0.05em;
+  }
+
+  #mobile-nav-btn {
+    display: none;
+    background: none;
+    border: 1px solid var(--color-sepia);
+    border-radius: 4px;
+    padding: 0.3rem 0.45rem;
+    cursor: pointer;
+    color: var(--color-ink-faded);
+    align-items: center;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  #mobile-nav-btn:hover { color: var(--color-ink); border-color: var(--color-ink); }
+  @media (max-width: 1059px) {
+    #mobile-nav-btn.active { display: flex; }
   }
 
   .nav-right {
