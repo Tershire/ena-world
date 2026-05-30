@@ -18,11 +18,16 @@ const navDirs = dirEntries.map((d) => ({
   title: d.data.title,
 }));
 
-const bgImage = `${base}/images/labs/central_lab_interior_day.webp`;
+const imgDay   = `${base}/images/labs/central_lab_interior_day.webp`;
+const imgNight = `${base}/images/labs/central_lab_interior_night.webp`;
 ---
 
 <BaseLayout title="Central Lab" noFooter={true}>
-  <div class="index-layout" style={`background-image: url('${bgImage}')`}>
+  <div id="lab-bg" aria-hidden="true">
+    <img id="lab-day"   src={imgDay}   alt="" />
+    <img id="lab-night" src={imgNight} alt="" />
+  </div>
+  <div class="index-layout">
     {navArticles.length > 0 && (
       <aside class="index-nav">
         <div class="nav-sticky">
@@ -47,12 +52,26 @@ const bgImage = `${base}/images/labs/central_lab_interior_day.webp`;
 </BaseLayout>
 
 <style>
+  #lab-bg {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+  }
+  #lab-bg img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    transition: opacity 0.3s ease;
+  }
+
   .index-layout {
     display: flex;
     align-items: stretch;
     min-height: calc(100vh - 52px);
-    background-size: cover;
-    background-position: center;
     flex: 1;
   }
 
@@ -114,3 +133,25 @@ const bgImage = `${base}/images/labs/central_lab_interior_day.webp`;
 
   .station-desc { color: #9a8870; font-style: italic; }
 </style>
+
+<script>
+  document.addEventListener('astro:page-load', () => {
+    const ac = new AbortController();
+    const { signal } = ac;
+    document.addEventListener('astro:before-preparation', () => ac.abort(), { once: true });
+
+    const imgDay   = document.getElementById('lab-day')!   as HTMLImageElement;
+    const imgNight = document.getElementById('lab-night')! as HTMLImageElement;
+    if (!imgDay || !imgNight) return;
+
+    function syncImages() {
+      const dark = document.documentElement.dataset.theme === 'dark';
+      imgDay.style.opacity   = dark ? '0' : '1';
+      imgNight.style.opacity = dark ? '1' : '0';
+    }
+    syncImages();
+    const mo = new MutationObserver(syncImages);
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    signal.addEventListener('abort', () => mo.disconnect());
+  });
+</script>
