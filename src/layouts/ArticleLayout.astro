@@ -85,6 +85,8 @@ const hasNav = navArticles && navArticles.length > 0 && navBase;
 
 <script>
   document.addEventListener('astro:page-load', () => {
+    if (!document.querySelector('.toc-card')) return;
+
     const ac = new AbortController();
     const { signal } = ac;
     document.addEventListener('astro:before-preparation', () => ac.abort(), { once: true });

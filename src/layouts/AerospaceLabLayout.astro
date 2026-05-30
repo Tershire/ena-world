@@ -109,6 +109,8 @@ const hasNav = navArticles && navArticles.length > 0 && navBase;
 
 <script>
   document.addEventListener('astro:page-load', () => {
+    if (!document.getElementById('sky-bg')) return;
+
     const ac = new AbortController();
     const { signal } = ac;
     document.addEventListener('astro:before-preparation', () => ac.abort(), { once: true });
@@ -200,7 +202,7 @@ const hasNav = navArticles && navArticles.length > 0 && navBase;
       const rulerPct = (1 - progress) * 100;
       rulerPip.style.top     = `${rulerPct}%`;
       rulerReadout.style.top = `${rulerPct}%`;
-      let zone = zones[0];
+      let zone: typeof zones[number] = zones[0];
       for (const z of zones) { if (altitude >= z.minAlt) zone = z; }
       rulerZoneName.textContent = zone.name;
     }

@@ -109,6 +109,8 @@ const hasNav = navArticles && navArticles.length > 0 && navBase;
 
 <script>
   document.addEventListener('astro:page-load', () => {
+    if (!document.getElementById('marine-bg')) return;
+
     const ac = new AbortController();
     const { signal } = ac;
     document.addEventListener('astro:before-preparation', () => ac.abort(), { once: true });
@@ -197,7 +199,7 @@ const hasNav = navArticles && navArticles.length > 0 && navBase;
       rulerNum.textContent = depth.toLocaleString();
       rulerPip.style.top     = `${pct}%`;
       rulerReadout.style.top = `${pct}%`;
-      let zone = zones[0];
+      let zone: typeof zones[number] = zones[0];
       for (const z of zones) { if (depth >= z.minDepth) zone = z; }
       rulerZoneName.textContent = zone.name;
     }
