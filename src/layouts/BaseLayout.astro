@@ -91,11 +91,6 @@ const searchIndex = [
   <body>
     <nav class="site-nav">
       <a href={base} class="nav-home">ENA World</a>
-      <button id="mobile-nav-btn" aria-label="Open navigation" aria-expanded="false">
-        <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-          <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
-        </svg>
-      </button>
       <div class="nav-right">
         <div class="nav-links">
           <div class="nav-dropdown">
@@ -129,6 +124,13 @@ const searchIndex = [
         </button>
       </div>
     </nav>
+
+    <!-- Mobile nav pull-tab (only on lab pages that have a sidebar) -->
+    <button id="mobile-nav-tab" aria-label="Open navigation" aria-expanded="false">
+      <svg class="nav-arrow" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="9 18 15 12 9 6"/>
+      </svg>
+    </button>
 
     <slot />
 
@@ -222,16 +224,17 @@ const searchIndex = [
       document.addEventListener('astro:page-load', () => {
         syncThemeIcon();
 
-        // ── Mobile nav toggle ──────────────────────────────
-        const sidebar   = document.querySelector<HTMLElement>('#nav-sidebar, .index-nav');
-        const mobileBtn = g('mobile-nav-btn') as HTMLButtonElement | null;
-        if (mobileBtn) {
-          mobileBtn.classList.toggle('active', !!sidebar);
+        // ── Mobile nav pull-tab ────────────────────────────
+        const sidebar = document.querySelector<HTMLElement>('#nav-sidebar, .index-nav');
+        const tab     = g('mobile-nav-tab') as HTMLButtonElement | null;
+        if (tab) {
+          tab.classList.toggle('active', !!sidebar);
           if (sidebar) {
             let backdrop: HTMLElement | null = null;
             function openNav() {
               sidebar!.classList.add('nav-open');
-              mobileBtn!.setAttribute('aria-expanded', 'true');
+              tab!.classList.add('nav-open');
+              tab!.setAttribute('aria-expanded', 'true');
               backdrop = document.createElement('div');
               backdrop.className = 'nav-backdrop';
               document.body.appendChild(backdrop);
@@ -239,12 +242,13 @@ const searchIndex = [
             }
             function closeNav() {
               sidebar!.classList.remove('nav-open');
-              mobileBtn!.setAttribute('aria-expanded', 'false');
+              tab!.classList.remove('nav-open');
+              tab!.setAttribute('aria-expanded', 'false');
               backdrop?.remove();
               backdrop = null;
             }
-            mobileBtn.addEventListener('click', () => {
-              sidebar!.classList.contains('nav-open') ? closeNav() : openNav();
+            tab.addEventListener('click', () => {
+              tab!.classList.contains('nav-open') ? closeNav() : openNav();
             });
             sidebar.querySelectorAll('a').forEach((a) => {
               a.addEventListener('click', closeNav);
@@ -385,20 +389,39 @@ const searchIndex = [
     letter-spacing: 0.05em;
   }
 
-  #mobile-nav-btn {
+  /* ── Mobile nav pull-tab ──────────────────────────── */
+  #mobile-nav-tab {
     display: none;
-    background: none;
+    position: fixed;
+    left: 0;
+    top: 45%;
+    transform: translateY(-50%);
+    z-index: 301;
+    background: var(--bg-panel);
     border: 1px solid var(--color-sepia);
-    border-radius: 4px;
-    padding: 0.3rem 0.45rem;
+    border-left: none;
+    border-radius: 0 8px 8px 0;
+    padding: 0.85rem 0.45rem;
     cursor: pointer;
     color: var(--color-ink-faded);
     align-items: center;
-    transition: color 0.15s, border-color 0.15s;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.14);
+    transition: left 0.22s ease, color 0.15s;
   }
-  #mobile-nav-btn:hover { color: var(--color-ink); border-color: var(--color-ink); }
+  #mobile-nav-tab:hover { color: var(--color-ink); }
+
+  #mobile-nav-tab .nav-arrow {
+    transition: transform 0.22s ease;
+  }
+  #mobile-nav-tab.nav-open .nav-arrow {
+    transform: rotate(180deg);
+  }
+  #mobile-nav-tab.nav-open {
+    left: min(280px, 85vw);
+  }
+
   @media (max-width: 1059px) {
-    #mobile-nav-btn.active { display: flex; }
+    #mobile-nav-tab.active { display: flex; }
   }
 
   .nav-right {
