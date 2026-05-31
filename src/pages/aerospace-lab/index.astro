@@ -21,7 +21,8 @@ const navDirs = dirEntries.map((d) => ({
 
 <BaseLayout title="Aerospace Lab" noFooter={true}>
   <div id="lab-bg" aria-hidden="true">
-    <img src={`${base}/images/labs/aerospace_lab_night.webp`} alt="" />
+    <img id="lab-day"   src={`${base}/images/labs/aerospace_lab_day.webp`}   alt="" />
+    <img id="lab-night" src={`${base}/images/labs/aerospace_lab_night.webp`} alt="" />
   </div>
   <div class="index-layout">
     {navArticles.length > 0 && (
@@ -61,6 +62,7 @@ const navDirs = dirEntries.map((d) => ({
     height: 100%;
     object-fit: cover;
     object-position: center;
+    transition: opacity 0.3s ease;
   }
 
   .index-layout {
@@ -128,3 +130,25 @@ const navDirs = dirEntries.map((d) => ({
 
   .station-desc { color: #9a8870; font-style: italic; }
 </style>
+
+<script>
+  document.addEventListener('astro:page-load', () => {
+    const ac = new AbortController();
+    const { signal } = ac;
+    document.addEventListener('astro:before-preparation', () => ac.abort(), { once: true });
+
+    const imgDay   = document.getElementById('lab-day')!   as HTMLImageElement;
+    const imgNight = document.getElementById('lab-night')! as HTMLImageElement;
+    if (!imgDay || !imgNight) return;
+
+    function syncImages() {
+      const dark = document.documentElement.dataset.theme === 'dark';
+      imgDay.style.opacity   = dark ? '0' : '1';
+      imgNight.style.opacity = dark ? '1' : '0';
+    }
+    syncImages();
+    const mo = new MutationObserver(syncImages);
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    signal.addEventListener('abort', () => mo.disconnect());
+  });
+</script>
