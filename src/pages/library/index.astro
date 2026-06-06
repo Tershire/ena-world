@@ -1,0 +1,130 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import NavTree from '../../components/NavTree.astro';
+
+const allEntries = await getCollection('library');
+const raw = allEntries
+  .filter((a) => !a.id.endsWith('/_index') && a.data.public)
+  .sort((a, b) => (b.data.date?.valueOf() ?? 0) - (a.data.date?.valueOf() ?? 0));
+const dirEntries = allEntries.filter((e) => e.id.endsWith('/_index'));
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const navBase = `${base}/library`;
+const navArticles = raw.map((a) => ({ id: a.id, title: a.data.title, order: a.data.order }));
+const navDirs = dirEntries.map((d) => ({
+  path: d.id.replace('/_index', ''),
+  order: d.data.order ?? 999,
+  title: d.data.title,
+}));
+---
+
+<BaseLayout title="Library" noFooter={true}>
+  <div id="lib-bg" aria-hidden="true"></div>
+  <div class="index-layout">
+    {navArticles.length > 0 && (
+      <aside class="index-nav">
+        <div class="nav-sticky">
+          <NavTree articles={navArticles} dirs={navDirs} base={navBase} accent="var(--color-moss)" label="Library" />
+        </div>
+      </aside>
+    )}
+
+    <main class="index-main">
+      <div class="index-content">
+        <header class="station-header">
+          <p class="station-label">Research Archive</p>
+          <h1>Library</h1>
+          <p class="station-desc">Papers · books · courses read and studied</p>
+        </header>
+      </div>
+      <footer class="site-footer">
+        <p>Charted by tershire · <a href="https://github.com/tershire/ena-world">source</a></p>
+      </footer>
+    </main>
+  </div>
+</BaseLayout>
+
+<style>
+  #lib-bg {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background:
+      radial-gradient(ellipse at 20% 60%, rgba(74, 103, 65, 0.18) 0%, transparent 55%),
+      radial-gradient(ellipse at 80% 30%, rgba(44, 31, 14, 0.25) 0%, transparent 50%),
+      var(--color-parchment);
+  }
+
+  [data-theme="dark"] #lib-bg {
+    background:
+      radial-gradient(ellipse at 20% 60%, rgba(74, 103, 65, 0.22) 0%, transparent 55%),
+      radial-gradient(ellipse at 80% 30%, rgba(196, 154, 108, 0.08) 0%, transparent 50%),
+      #0e1209;
+  }
+
+  .index-layout {
+    display: flex;
+    align-items: stretch;
+    min-height: calc(100vh - 52px);
+    flex: 1;
+  }
+
+  .index-nav { display: none; }
+
+  @media (min-width: 1060px) {
+    .index-nav {
+      display: block;
+      width: 280px;
+      flex-shrink: 0;
+      align-self: stretch;
+      background: var(--bg-panel);
+    }
+  }
+
+  .nav-sticky {
+    position: sticky;
+    top: 52px;
+    max-height: calc(100vh - 52px);
+    overflow-y: auto;
+    padding: 1.25rem;
+  }
+
+  .index-main {
+    flex: 1;
+    min-width: 0;
+    padding: 4rem 2rem 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .index-content { flex: 1; }
+
+  .station-header {
+    display: inline-block;
+    background: rgba(20, 17, 13, 0.55);
+    padding: 1.25rem 2rem 1.25rem;
+    border-radius: 4px;
+    margin-bottom: 2.5rem;
+  }
+
+  .station-header::after {
+    content: '';
+    display: block;
+    height: 1px;
+    background: var(--color-moss);
+    margin-top: 0.9rem;
+  }
+
+  .station-label {
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #9a8870;
+    margin-bottom: 0.5rem;
+  }
+
+  .station-header h1 { font-size: 2.5rem; margin-bottom: 0.4rem; color: #ddd0b8; }
+
+  .station-desc { color: #9a8870; font-style: italic; }
+</style>

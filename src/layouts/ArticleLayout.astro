@@ -11,10 +11,11 @@ interface Props {
   navDirs?: { path: string; order: number; title?: string }[];
   navBase?: string;
   navLabel?: string;
+  navAccent?: string;
   currentId?: string;
 }
 
-const { title, description, date, tags = [], navArticles, navDirs, navBase, navLabel, currentId } = Astro.props;
+const { title, description, date, tags = [], navArticles, navDirs, navBase, navLabel, navAccent, currentId } = Astro.props;
 const hasNav = navArticles && navArticles.length > 0 && navBase;
 ---
 
@@ -27,7 +28,7 @@ const hasNav = navArticles && navArticles.length > 0 && navBase;
     {hasNav && (
       <aside id="nav-sidebar">
         <div class="nav-sticky">
-          <NavTree articles={navArticles!} dirs={navDirs} base={navBase!} currentId={currentId} label={navLabel} />
+          <NavTree articles={navArticles!} dirs={navDirs} base={navBase!} currentId={currentId} label={navLabel} accent={navAccent} />
         </div>
       </aside>
     )}

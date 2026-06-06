@@ -1,0 +1,87 @@
+---
+import { getCollection, render } from 'astro:content';
+import ArticleLayout from '../../layouts/ArticleLayout.astro';
+
+export async function getStaticPaths() {
+  const allEntries = await getCollection('library');
+  const articles = allEntries.filter((e) => !e.id.endsWith('/_index') && e.data.public);
+  const dirEntries = allEntries.filter((e) => e.id.endsWith('/_index'));
+  return articles.map((article) => ({
+    params: { slug: article.id },
+    props: { article, allArticles: articles, dirEntries },
+  }));
+}
+
+const { article, allArticles, dirEntries } = Astro.props;
+const { Content } = await render(article);
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const navBase = `${base}/library`;
+const navArticles = allArticles.map((a) => ({ id: a.id, title: a.data.title, order: a.data.order }));
+const navDirs = dirEntries.map((d) => ({
+  path: d.id.replace('/_index', ''),
+  order: d.data.order ?? 999,
+  title: d.data.title,
+}));
+
+const { type, authors, year, source } = article.data;
+---
+
+<ArticleLayout
+  title={article.data.title}
+  description={article.data.description}
+  date={article.data.date}
+  tags={article.data.tags}
+  navArticles={navArticles}
+  navDirs={navDirs}
+  navBase={navBase}
+  navLabel="Library"
+  currentId={article.id}
+  navAccent="var(--color-moss)"
+>
+  {(type || authors || year || source) && (
+    <div class="lib-meta">
+      {type && <span class="lib-type">{type}</span>}
+      {authors && <span class="lib-authors">{authors}</span>}
+      {year && <span class="lib-year">{year}</span>}
+      {source && <a class="lib-source" href={source} target="_blank" rel="noopener">source ↗</a>}
+    </div>
+  )}
+  <Content />
+</ArticleLayout>
+
+<style>
+  .lib-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1rem;
+    margin-bottom: 2rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid rgba(196, 154, 108, 0.3);
+    font-size: 0.85rem;
+    color: var(--color-ink-faded);
+  }
+
+  .lib-type {
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    background: rgba(74, 103, 65, 0.18);
+    color: var(--color-moss);
+    padding: 0.2em 0.65em;
+    border-radius: 999px;
+  }
+
+  .lib-authors { font-style: italic; }
+
+  .lib-year { font-variant-numeric: tabular-nums; }
+
+  .lib-source {
+    color: var(--color-moss);
+    text-decoration: none;
+    transition: opacity 0.15s;
+  }
+  .lib-source:hover { opacity: 0.75; }
+</style>

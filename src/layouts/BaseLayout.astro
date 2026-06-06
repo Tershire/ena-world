@@ -57,6 +57,16 @@ const searchIndex = [
     lab: 'Marine Lab',
     accent: 'var(--color-sky)',
   })),
+  ...(await getCollection('library')).filter(a => a.data.public && !a.id.endsWith('/_index')).map(a => ({
+    title: a.data.title,
+    description: a.data.description ?? '',
+    tags: a.data.tags ?? [],
+    date: a.data.date?.toISOString() ?? '',
+    body: stripMarkdown(a.body ?? ''),
+    href: `${base}/library/${a.id}`,
+    lab: 'Library',
+    accent: 'var(--color-moss)',
+  })),
 ];
 ---
 
@@ -103,6 +113,7 @@ const searchIndex = [
               <a href={`${base}/aerospace-lab`}>Aerospace Lab</a>
             </div>
           </div>
+          <a href={`${base}/library`}>Library</a>
           <a href={`${base}/about`}>About</a>
         </div>
         <button id="search-btn" aria-label="Search articles" title="Search (/)">
