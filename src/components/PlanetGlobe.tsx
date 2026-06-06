@@ -21,12 +21,14 @@ interface Station {
   phi: number;
   theta: number;
   color: number;
+  natural?: boolean; // if true, terrain is not forced at this location
 }
 
 const STATIONS: Station[] = [
   { id: 'central-lab',   label: 'Central Lab',   href: '/central-lab',   phi: 1.35, theta: 0.5,  color: 0xe8c87a },
   { id: 'marine-lab',    label: 'Marine Lab',    href: '/marine-lab',    phi: 1.75, theta: -1.2, color: 0x5bc8e8 },
   { id: 'aerospace-lab', label: 'Aerospace Lab', href: '/aerospace-lab', phi: 0.85, theta: 2.0,  color: 0x90b8f0 },
+  { id: 'library',       label: 'Library',       href: '/library',       phi: 1.10, theta: 0.65, color: 0x7ac870, natural: true },
 ];
 
 // ── Flat map constants ───────────────────────────────────
@@ -150,7 +152,7 @@ function stationUnitVec(s: Station): THREE.Vector3 {
 function buildTerrain() {
   const noise   = createNoise3D(seededRng(4271));
   const rng     = seededRng(9913);
-  const stationVecs = STATIONS.map(stationUnitVec);
+  const stationVecs = STATIONS.filter(s => !s.natural).map(stationUnitVec);
 
   const VP = new THREE.Vector3(0.55, 0.55, 0.62).normalize();
 
@@ -687,9 +689,11 @@ function buildStation(
 
   const wallColor = s.id === 'central-lab'   ? 0xf2e6cc
                   : s.id === 'marine-lab'    ? 0xe8e8e0
+                  : s.id === 'library'       ? 0xe0d8b8
                   :                            0xd0cfc8;
   const roofColor = s.id === 'central-lab'   ? 0xa03828
                   : s.id === 'marine-lab'    ? 0x2a4a60
+                  : s.id === 'library'       ? 0x3a5825
                   :                            0x484848;
   const roofRatio = s.id === 'central-lab'   ? 0.72
                   : s.id === 'aerospace-lab' ? 0.18
@@ -863,6 +867,35 @@ function buildStation(
     const sVStab = new THREE.Mesh(sVStabGeo, shuttleMat);
     sVStab.position.copy(shuttlePos.clone().addScaledVector(right, -0.020));
     sVStab.quaternion.copy(quat); group.add(sVStab);
+  }
+
+  if (s.id === 'library') {
+    const columnMat = new THREE.MeshLambertMaterial({ color: 0xece4cc });
+    const COLS = 4;
+    const COL_H = 0.034;
+    const COL_SPREAD = 0.042;
+    for (let ci = 0; ci < COLS; ci++) {
+      const ox = -COL_SPREAD / 2 + (ci / (COLS - 1)) * COL_SPREAD;
+      const colGeo = new THREE.CylinderGeometry(0.0024, 0.0030, COL_H, 7);
+      colGeo.translate(0, COL_H / 2, 0);
+      const col = new THREE.Mesh(colGeo, columnMat);
+      col.position.copy(normal.clone().multiplyScalar(r).addScaledVector(right, ox).addScaledVector(forward, 0.020));
+      col.quaternion.copy(quat);
+      group.add(col);
+    }
+    const lintelGeo = new THREE.BoxGeometry(COL_SPREAD + 0.014, 0.005, 0.007);
+    lintelGeo.translate(0, COL_H + 0.0025, 0);
+    const lintel = new THREE.Mesh(lintelGeo, columnMat);
+    lintel.position.copy(normal.clone().multiplyScalar(r).addScaledVector(forward, 0.020));
+    lintel.quaternion.copy(quat);
+    group.add(lintel);
+
+    const domeGeo = new THREE.SphereGeometry(0.014, 10, 6, 0, Math.PI * 2, 0, Math.PI * 0.5);
+    domeGeo.translate(0, 0.030, 0);
+    const dome = new THREE.Mesh(domeGeo, new THREE.MeshLambertMaterial({ color: 0x4a7030 }));
+    dome.position.copy(normal.clone().multiplyScalar(r));
+    dome.quaternion.copy(quat);
+    group.add(dome);
   }
 
   return { group, emissiveMats };
