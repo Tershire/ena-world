@@ -63,6 +63,7 @@ echo "==> Syncing vault: ${VAULT}"
 sync_station "central-lab"
 sync_station "marine-lab"
 sync_station "aerospace-lab"
+sync_station "library"
 
 # Sync references.bib (Better BibTeX auto-export from Zotero)
 if [[ -f "${VAULT}/references.bib" ]]; then

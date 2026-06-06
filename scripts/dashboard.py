@@ -42,7 +42,10 @@ STEPS = [
     ]),
 ]
 
-RESYNC_CMD = BISYNC_CMD + ["--resync"]
+RESYNC_CMD     = BISYNC_CMD + ["--resync"]
+RECONNECT_CMD  = ["rclone", "config", "reconnect", "google_drive:"]
+
+TOKEN_ERR_HINTS = ("invalid_grant", "token expired", "couldn't fetch token", "oauth2")
 
 
 class Worker(QThread):
@@ -71,6 +74,71 @@ class Worker(QThread):
             self.done.emit(1)
 
 
+class ReconnectWorker(QThread):
+    """Runs rclone config reconnect on a PTY, auto-answering y/n prompts."""
+    output = pyqtSignal(str)
+    done   = pyqtSignal(int)
+
+    def run(self):
+        import pty, os, select as sel, time
+        master = None
+        try:
+            master, slave = pty.openpty()
+            proc = subprocess.Popen(
+                RECONNECT_CMD,
+                stdin=slave, stdout=slave, stderr=slave,
+                cwd=PROJECT,
+            )
+            os.close(slave)
+
+            answers = [b"y\n", b"y\n"]  # (1) refresh token  (2) use browser
+            ans_idx = 0
+
+            while True:
+                try:
+                    r, _, _ = sel.select([master], [], [], 0.15)
+                except (OSError, ValueError):
+                    break
+                if r:
+                    try:
+                        chunk = os.read(master, 4096)
+                    except OSError:
+                        break
+                    text = chunk.decode("utf-8", errors="replace")
+                    self.output.emit(ANSI.sub("", text))
+                    if "y/n>" in text and ans_idx < len(answers):
+                        time.sleep(0.05)
+                        try:
+                            os.write(master, answers[ans_idx])
+                            ans_idx += 1
+                        except OSError:
+                            pass
+                if proc.poll() is not None:
+                    while True:
+                        try:
+                            r2, _, _ = sel.select([master], [], [], 0.2)
+                            if not r2:
+                                break
+                            chunk = os.read(master, 4096)
+                            if chunk:
+                                self.output.emit(ANSI.sub("", chunk.decode("utf-8", errors="replace")))
+                        except OSError:
+                            break
+                    break
+
+            proc.wait()
+            self.done.emit(proc.returncode)
+        except Exception as e:
+            self.output.emit(f"Error: {e}\n")
+            self.done.emit(1)
+        finally:
+            if master is not None:
+                try:
+                    os.close(master)
+                except OSError:
+                    pass
+
+
 class Dashboard(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -80,6 +148,7 @@ class Dashboard(QMainWindow):
         self._preview_proc  = None
         self._after_success = None
         self._last_was_bisync = False
+        self._token_error     = False
         self._build_ui()
 
     def _build_ui(self):
@@ -112,6 +181,15 @@ class Dashboard(QMainWindow):
         self._resync_btn.clicked.connect(lambda: self._run(RESYNC_CMD, bisync=True))
         btn_row.addWidget(self._resync_btn)
 
+        self._reconnect_btn = QPushButton("🔑 reconnect\nDrive")
+        self._reconnect_btn.setFixedHeight(56)
+        self._reconnect_btn.setStyleSheet(
+            "font-size: 12px; color: #fff; background: #1a5276;"
+        )
+        self._reconnect_btn.setVisible(False)
+        self._reconnect_btn.clicked.connect(self._do_reconnect)
+        btn_row.addWidget(self._reconnect_btn)
+
         layout.addLayout(btn_row)
 
         self._log = QPlainTextEdit()
@@ -119,6 +197,18 @@ class Dashboard(QMainWindow):
         self._log.setFont(QFont("Monospace", 9))
         self._log.setStyleSheet("background:#1e1e1e; color:#d4d4d4; border:none;")
         layout.addWidget(self._log)
+
+    def _do_reconnect(self):
+        self._resync_btn.setVisible(False)
+        self._reconnect_btn.setVisible(False)
+        self._last_was_bisync = False
+        self._token_error = False
+        self._set_buttons(False)
+        self._log.appendPlainText("─" * 60 + "\n")
+        self._worker = ReconnectWorker()
+        self._worker.output.connect(self._append)
+        self._worker.done.connect(self._finished)
+        self._worker.start()
 
     def _do_preview(self):
         if self._preview_proc and self._preview_proc.poll() is None:
@@ -140,7 +230,9 @@ class Dashboard(QMainWindow):
 
     def _run(self, cmd, bisync=False):
         self._last_was_bisync = bisync
+        self._token_error = False
         self._resync_btn.setVisible(False)
+        self._reconnect_btn.setVisible(False)
         self._set_buttons(False)
         self._log.appendPlainText("─" * 60)
         self._worker = Worker(cmd)
@@ -149,6 +241,8 @@ class Dashboard(QMainWindow):
         self._worker.start()
 
     def _append(self, text):
+        if any(hint in text for hint in TOKEN_ERR_HINTS):
+            self._token_error = True
         self._log.moveCursor(self._log.textCursor().MoveOperation.End)
         self._log.insertPlainText(text)
         self._log.ensureCursorVisible()
@@ -156,7 +250,9 @@ class Dashboard(QMainWindow):
     def _finished(self, code):
         mark = "✓ done" if code == 0 else f"✗ exit {code}"
         self._log.appendPlainText(mark + "\n")
-        self._resync_btn.setVisible(self._last_was_bisync and code != 0)
+        failed_bisync = self._last_was_bisync and code != 0
+        self._reconnect_btn.setVisible(failed_bisync and self._token_error)
+        self._resync_btn.setVisible(failed_bisync and not self._token_error)
         if code == 0 and self._after_success:
             self._after_success()
         self._after_success = None
@@ -167,6 +263,8 @@ class Dashboard(QMainWindow):
             b.setEnabled(enabled)
         if self._resync_btn.isVisible():
             self._resync_btn.setEnabled(enabled)
+        if self._reconnect_btn.isVisible():
+            self._reconnect_btn.setEnabled(enabled)
 
 
     def closeEvent(self, event):

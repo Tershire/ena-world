@@ -379,6 +379,71 @@
   file = {/home/tershire/Zotero/storage/J3KGXXCH/Ramos et al. - 2022 - A summary on the UD Kalman Filter.pdf}
 }
 
+@article{ranaSayPlanGroundingLarge,
+  title = {{{SayPlan}}: {{Grounding Large Language Models}} Using {{3D Scene Graphs}} for {{Scalable Robot Task Planning}}},
+  author = {Rana, Krishan and Haviland, Jesse and Garg, Sourav and {Abou-Chakra}, Jad and Reid, Ian},
+  abstract = {Large language models (LLMs) have demonstrated impressive results in developing generalist planning agents for diverse tasks. However, grounding these plans in expansive, multi-floor, and multi-room environments presents a significant challenge for robotics. We introduce SayPlan, a scalable approach to LLM-based, large-scale task planning for robotics using 3D scene graph (3DSG) representations. To ensure the scalability of our approach, we: (1) exploit the hierarchical nature of 3DSGs to allow LLMs to conduct a semantic search for task-relevant subgraphs from a smaller, collapsed representation of the full graph; (2) reduce the planning horizon for the LLM by integrating a classical path planner and (3) introduce an iterative replanning pipeline that refines the initial plan using feedback from a scene graph simulator, correcting infeasible actions and avoiding planning failures. We evaluate our approach on two large-scale environments spanning up to 3 floors and 36 rooms with 140 assets and objects and show that our approach is capable of grounding large-scale, long-horizon task plans from abstract, and natural language instruction for a mobile manipulator robot to execute. We provide real robot video demonstrations on our project page sayplan.github.io.},
+  langid = {english},
+  file = {/home/tershire/Zotero/storage/Q2L4HE8A/Rana et al. - SayPlan Grounding Large Language Models using 3D Scene Graphs for Scalable Robot Task Planning.pdf}
+}
+
+@misc{rosinol3DDynamicScene2020,
+  title = {{{3D Dynamic Scene Graphs}}: {{Actionable Spatial Perception}} with {{Places}}, {{Objects}}, and {{Humans}}},
+  shorttitle = {{{3D Dynamic Scene Graphs}}},
+  author = {Rosinol, Antoni and Gupta, Arjun and Abate, Marcus and Shi, Jingnan and Carlone, Luca},
+  year = 2020,
+  month = jun,
+  number = {arXiv:2002.06289},
+  eprint = {2002.06289},
+  primaryclass = {cs.RO},
+  publisher = {arXiv},
+  doi = {10.48550/arXiv.2002.06289},
+  urldate = {2026-05-30},
+  abstract = {We present a unified representation for actionable spatial perception: 3D Dynamic Scene Graphs. Scene graphs are directed graphs where nodes represent entities in the scene (e.g., objects, walls, rooms), and edges represent relations (e.g., inclusion, adjacency) among nodes. Dynamic scene graphs (DSGs) extend this notion to represent dynamic scenes with moving agents (e.g., humans, robots), and to include actionable information that supports planning and decision-making (e.g., spatiotemporal relations, topology at different levels of abstraction). Our second contribution is to provide the first fully automatic Spatial PerceptIon eNgine (SPIN) to build a DSG from visualinertial data. We integrate state-of-the-art techniques for object and human detection and pose estimation, and we describe how to robustly infer object, robot, and human nodes in crowded scenes.},
+  archiveprefix = {arXiv},
+  langid = {english},
+  keywords = {Computer Science - Artificial Intelligence,Computer Science - Computer Vision and Pattern Recognition,Computer Science - Robotics},
+  file = {/home/tershire/Zotero/storage/6EX7XCQU/Rosinol et al. - 2020 - 3D Dynamic Scene Graphs Actionable Spatial Perception with Places, Objects, and Humans.pdf}
+}
+
+@misc{rosinolKimeraOpenSourceLibrary2020,
+  title = {Kimera: An {{Open-Source Library}} for {{Real-Time Metric-Semantic Localization}} and {{Mapping}}},
+  shorttitle = {Kimera},
+  author = {Rosinol, Antoni and Abate, Marcus and Chang, Yun and Carlone, Luca},
+  year = 2020,
+  month = mar,
+  number = {arXiv:1910.02490},
+  eprint = {1910.02490},
+  primaryclass = {cs.RO},
+  publisher = {arXiv},
+  doi = {10.48550/arXiv.1910.02490},
+  urldate = {2026-05-30},
+  abstract = {We provide an open-source C++ library for realtime metric-semantic visual-inertial Simultaneous Localization And Mapping (SLAM). The library goes beyond existing visual and visual-inertial SLAM libraries (e.g., ORB-SLAM, VINSMono, OKVIS, ROVIO) by enabling mesh reconstruction and semantic labeling in 3D. Kimera is designed with modularity in mind and has four key components: a visual-inertial odometry (VIO) module for fast and accurate state estimation, a robust pose graph optimizer for global trajectory estimation, a lightweight 3D mesher module for fast mesh reconstruction, and a dense 3D metric-semantic reconstruction module. The modules can be run in isolation or in combination, hence Kimera can easily fall back to a state-of-the-art VIO or a full SLAM system. Kimera runs in real-time on a CPU and produces a 3D metric-semantic mesh from semantically labeled images, which can be obtained by modern deep learning methods. We hope that the flexibility, computational efficiency, robustness, and accuracy afforded by Kimera will build a solid basis for future metric-semantic SLAM and perception research, and will allow researchers across multiple areas (e.g., VIO, SLAM, 3D reconstruction, segmentation) to benchmark and prototype their own efforts without having to start from scratch.},
+  archiveprefix = {arXiv},
+  langid = {english},
+  keywords = {Computer Science - Computer Vision and Pattern Recognition,Computer Science - Robotics},
+  file = {/home/tershire/Zotero/storage/QNKKXYS7/Rosinol et al. - 2020 - Kimera an Open-Source Library for Real-Time Metric-Semantic Localization and Mapping.pdf}
+}
+
+@misc{rosinolKimeraSLAMSpatial2021,
+  title = {Kimera: From {{SLAM}} to {{Spatial Perception}} with {{3D Dynamic Scene Graphs}}},
+  shorttitle = {Kimera},
+  author = {Rosinol, Antoni and Violette, Andrew and Abate, Marcus and Hughes, Nathan and Chang, Yun and Shi, Jingnan and Gupta, Arjun and Carlone, Luca},
+  year = 2021,
+  month = oct,
+  number = {arXiv:2101.06894},
+  eprint = {2101.06894},
+  primaryclass = {cs.RO},
+  publisher = {arXiv},
+  doi = {10.48550/arXiv.2101.06894},
+  urldate = {2026-05-30},
+  abstract = {Humans are able to form a complex mental model of the environment they move in. This mental model captures geometric and semantic aspects of the scene, describes the environment at multiple levels of abstractions (e.g., objects, rooms, buildings), includes static and dynamic entities and their relations (e.g., a person is in a room at a given time). In contrast, current robots' internal representations still provide a partial and fragmented understanding of the environment, either in the form of a sparse or dense set of geometric primitives (e.g., points, lines, planes, voxels), or as a collection of objects. This paper attempts to reduce the gap between robot and human perception by introducing a novel representation, a 3D Dynamic Scene Graph (DSG), that seamlessly captures metric and semantic aspects of a dynamic environment. A DSG is a layered graph where nodes represent spatial concepts at different levels of abstraction, and edges represent spatio-temporal relations among nodes. Our second contribution is Kimera, the first fully automatic method to build a DSG from visual-inertial data. Kimera includes accurate algorithms for visual-inertial SLAM, metric-semantic 3D reconstruction, object localization, human pose and shape estimation, and scene parsing. Our third contribution is a comprehensive evaluation of Kimera in real-life datasets and photo-realistic simulations, including a newly released dataset, uHumans2, which simulates a collection of crowded indoor and outdoor scenes. Our evaluation shows that Kimera achieves competitive performance in visual-inertial SLAM, estimates an accurate 3D metric-semantic mesh model in real-time, and builds a DSG of a complex indoor environment with tens of objects and humans in minutes. Our final contribution is to showcase how to use a DSG for real-time hierarchical semantic path-planning. The core modules in Kimera have been released open source.},
+  archiveprefix = {arXiv},
+  langid = {english},
+  keywords = {Computer Science - Computer Vision and Pattern Recognition,Computer Science - Robotics},
+  file = {/home/tershire/Zotero/storage/C2VFIDXB/Rosinol et al. - 2021 - Kimera from SLAM to Spatial Perception with 3D Dynamic Scene Graphs.pdf}
+}
+
 @article{scaramuzzaVisualOdometryTutorial2011,
   title = {Visual {{Odometry}} [{{Tutorial}}]},
   author = {Scaramuzza, Davide and Fraundorfer, Friedrich},
