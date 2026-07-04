@@ -28,7 +28,8 @@ const STATIONS: Station[] = [
   { id: 'central-lab',   label: 'Central Lab',   href: '/central-lab',   phi: 1.35, theta: 0.5,  color: 0xe8c87a },
   { id: 'marine-lab',    label: 'Marine Lab',    href: '/marine-lab',    phi: 1.75, theta: -1.2, color: 0x5bc8e8 },
   { id: 'aerospace-lab', label: 'Aerospace Lab', href: '/aerospace-lab', phi: 0.85, theta: 2.0,  color: 0x90b8f0 },
-  { id: 'library',       label: 'Library',       href: '/library',       phi: 1.10, theta: 0.65, color: 0x7ac870, natural: true },
+  { id: 'studio-lab',   label: 'Studio Lab',    href: '/studio-lab',    phi: 1.20, theta: 3.0,  color: 0xd8d8d8, natural: true },
+  { id: 'library',      label: 'Library',       href: '/library',       phi: 1.10, theta: 0.65, color: 0x7ac870, natural: true },
 ];
 
 // ── Flat map constants ───────────────────────────────────
@@ -689,10 +690,12 @@ function buildStation(
 
   const wallColor = s.id === 'central-lab'   ? 0xf2e6cc
                   : s.id === 'marine-lab'    ? 0xe8e8e0
+                  : s.id === 'studio-lab'    ? 0x181818
                   : s.id === 'library'       ? 0xe0d8b8
                   :                            0xd0cfc8;
   const roofColor = s.id === 'central-lab'   ? 0xa03828
                   : s.id === 'marine-lab'    ? 0x2a4a60
+                  : s.id === 'studio-lab'    ? 0x111111
                   : s.id === 'library'       ? 0x3a5825
                   :                            0x484848;
   const roofRatio = s.id === 'central-lab'   ? 0.72
@@ -720,10 +723,12 @@ function buildStation(
     group.add(roof);
   }
 
-  addBuilding(0.036, 0.030, 0.028,  0.000,  0.000);
-  addBuilding(0.020, 0.020, 0.018,  0.030,  0.008);
-  addBuilding(0.012, 0.038, 0.012, -0.024,  0.006);
-  addBuilding(0.026, 0.015, 0.020,  0.004, -0.026);
+  if (s.id !== 'studio-lab') {
+    addBuilding(0.036, 0.030, 0.028,  0.000,  0.000);
+    addBuilding(0.020, 0.020, 0.018,  0.030,  0.008);
+    addBuilding(0.012, 0.038, 0.012, -0.024,  0.006);
+    addBuilding(0.026, 0.015, 0.020,  0.004, -0.026);
+  }
 
   if (s.id === 'central-lab') {
     const chimneyGeo = new THREE.BoxGeometry(0.007, 0.018, 0.007);
@@ -867,6 +872,85 @@ function buildStation(
     const sVStab = new THREE.Mesh(sVStabGeo, shuttleMat);
     sVStab.position.copy(shuttlePos.clone().addScaledVector(right, -0.020));
     sVStab.quaternion.copy(quat); group.add(sVStab);
+  }
+
+  if (s.id === 'studio-lab') {
+    const darkMat       = new THREE.MeshLambertMaterial({ color: 0x181818 });
+    const charcoalMat   = new THREE.MeshLambertMaterial({ color: 0x242424 });
+    const steelDarkMat  = new THREE.MeshLambertMaterial({ color: 0x2e2e2e });
+    const glassPanelMat = new THREE.MeshLambertMaterial({ color: 0x1a3a5a, transparent: true, opacity: 0.78 });
+    const neonPinkMat   = new THREE.MeshLambertMaterial({
+      color: 0xff2266, emissive: new THREE.Color(0xff0055), emissiveIntensity: 0,
+    });
+    const neonBlueMat   = new THREE.MeshLambertMaterial({
+      color: 0x2244dd, emissive: new THREE.Color(0x0033ff), emissiveIntensity: 0,
+    });
+    emissiveMats.push(neonPinkMat, neonBlueMat);
+
+    // Local helper: flat-roofed box aligned to the surface
+    const addBox = (
+      w: number, ht: number, d: number,
+      dr: number, dy: number, df: number,
+      mat: THREE.MeshLambertMaterial,
+    ) => {
+      const geo = new THREE.BoxGeometry(w, ht, d);
+      geo.translate(0, ht / 2, 0);
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.copy(
+        normal.clone().multiplyScalar(r + dy)
+          .addScaledVector(right,   dr)
+          .addScaledVector(forward, df),
+      );
+      mesh.quaternion.copy(quat);
+      group.add(mesh);
+    };
+
+    // ── Main warehouse studio (wide, low, flat roof) ──────
+    addBox(0.090, 0.026, 0.048,  0.000, 0.000,  0.000, darkMat);
+
+    // ── Control room annex (east side) ────────────────────
+    addBox(0.028, 0.018, 0.024,  0.059, 0.000,  0.004, charcoalMat);
+
+    // ── Glass skylights on warehouse roof (3 panels) ──────
+    for (let i = -1; i <= 1; i++) {
+      addBox(0.020, 0.005, 0.034, i * 0.026, 0.026,  0.004, glassPanelMat);
+    }
+
+    // ── Neon strips on south facade ───────────────────────
+    addBox(0.070, 0.003, 0.001,  0.000, 0.016, -0.025, neonPinkMat);
+    addBox(0.044, 0.002, 0.001, -0.004, 0.009, -0.025, neonBlueMat);
+
+    // ── Rooftop HVAC units ────────────────────────────────
+    addBox(0.014, 0.007, 0.012, -0.028, 0.026,  0.012, steelDarkMat);
+    addBox(0.010, 0.006, 0.008,  0.012, 0.026, -0.014, steelDarkMat);
+
+    // ── Outdoor stage platform (west side) ────────────────
+    addBox(0.042, 0.004, 0.032, -0.070, 0.000, -0.004, steelDarkMat);
+    addBox(0.042, 0.002, 0.001, -0.070, 0.004, -0.020, neonBlueMat);  // stage-front neon edge
+
+    // ── Broadcast antenna mast (on warehouse roof) ────────
+    {
+      const MAST_DR = -0.056; const MAST_DF = 0.018; const MAST_BASE_DY = 0.026;
+      const MAST_H  = 0.055;
+      const mastGeo = new THREE.CylinderGeometry(0.0012, 0.0015, MAST_H, 5);
+      mastGeo.translate(0, MAST_H / 2, 0);
+      const mast = new THREE.Mesh(mastGeo, steelDarkMat);
+      mast.position.copy(
+        normal.clone().multiplyScalar(r + MAST_BASE_DY)
+          .addScaledVector(right,   MAST_DR)
+          .addScaledVector(forward, MAST_DF),
+      );
+      mast.quaternion.copy(quat);
+      group.add(mast);
+      // Horizontal antenna arms at three heights
+      for (const armDy of [MAST_BASE_DY + 0.032, MAST_BASE_DY + 0.044, MAST_BASE_DY + 0.052]) {
+        addBox(0.026, 0.0012, 0.0012, MAST_DR, armDy, MAST_DF, steelDarkMat);
+      }
+    }
+
+    // ── Equipment van parked south of entrance ────────────
+    addBox(0.020, 0.016, 0.038, -0.018, 0.000, -0.048, charcoalMat);
+    addBox(0.016, 0.007, 0.001, -0.018, 0.008, -0.068, glassPanelMat);  // windshield
   }
 
   if (s.id === 'library') {
@@ -1392,7 +1476,9 @@ export default function PlanetGlobe({ base }: { base: string }) {
       const sv = stationUnitVec(s);
       const h  = getHeight(sv.x, sv.y, sv.z);
       const r  = 1.0 + Math.max(h, 0.010) + 0.04;
-      const warmColor = s.id === 'central-lab' ? 0xff6611 : 0xffaa55;
+      const warmColor = s.id === 'central-lab' ? 0xff6611
+                      : s.id === 'studio-lab'  ? 0xff1a55
+                      :                          0xffaa55;
       const light = new THREE.PointLight(warmColor, 0, 0.12);
       light.position.copy(sv.clone().multiplyScalar(r));
       scene.add(light);

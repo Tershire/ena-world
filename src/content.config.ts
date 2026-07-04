@@ -36,6 +36,10 @@ export const collections = {
     loader: glob({ pattern: '**/*.md', base: './src/content/aerospace-lab' }),
     schema: articleSchema,
   }),
+  'studio-lab': defineCollection({
+    loader: glob({ pattern: '**/*.md', base: './src/content/studio-lab' }),
+    schema: articleSchema,
+  }),
   'library': defineCollection({
     loader: glob({ pattern: '**/*.md', base: './src/content/library' }),
     schema: librarySchema,

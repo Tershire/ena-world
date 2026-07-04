@@ -1,0 +1,147 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import NavTree from '../../components/NavTree.astro';
+
+const allEntries = await getCollection('studio-lab');
+const raw        = allEntries
+  .filter((a) => !a.id.endsWith('/_index') && a.data.public)
+  .sort((a, b) => (b.data.date?.valueOf() ?? 0) - (a.data.date?.valueOf() ?? 0));
+const dirEntries = allEntries.filter((e) => e.id.endsWith('/_index'));
+
+const base        = import.meta.env.BASE_URL.replace(/\/$/, '');
+const navBase     = `${base}/studio-lab`;
+const navArticles = raw.map((a) => ({ id: a.id, title: a.data.title, order: a.data.order }));
+const navDirs     = dirEntries.map((d) => ({
+  path:  d.id.replace('/_index', ''),
+  order: d.data.order ?? 999,
+  title: d.data.title,
+}));
+---
+
+<BaseLayout title="Studio Lab" noFooter={true}>
+  <div class="studio-layout">
+    {navArticles.length > 0 && (
+      <aside class="index-nav">
+        <div class="nav-sticky">
+          <NavTree articles={navArticles} dirs={navDirs} base={navBase} label="Studio Lab" />
+        </div>
+      </aside>
+    )}
+
+    <main class="studio-main">
+      <div class="studio-content">
+        <div class="grid-overlay" aria-hidden="true"></div>
+        <header class="station-header">
+          <p class="station-label">Creative Workshop</p>
+          <h1>Studio Lab</h1>
+          <p class="station-desc">Visualizations, interactive demos, and experiments.</p>
+        </header>
+      </div>
+      <footer class="site-footer studio-footer">
+        <p>Charted by tershire · <a href="https://github.com/tershire/ena-world">source</a></p>
+      </footer>
+    </main>
+  </div>
+</BaseLayout>
+
+<style>
+  .studio-layout {
+    display: flex;
+    align-items: stretch;
+    min-height: calc(100vh - 52px);
+    flex: 1;
+    background: radial-gradient(ellipse at 40% 30%, #141414 0%, #080808 100%);
+  }
+
+  .index-nav { display: none; }
+
+  @media (min-width: 1060px) {
+    .index-nav {
+      display: block;
+      width: 280px;
+      flex-shrink: 0;
+      align-self: stretch;
+      background: rgba(12, 12, 12, 0.92);
+      border-right: 1px solid rgba(255, 34, 102, 0.18);
+    }
+  }
+
+  .nav-sticky {
+    position: sticky;
+    top: 52px;
+    max-height: calc(100vh - 52px);
+    overflow-y: auto;
+    padding: 1.25rem;
+  }
+
+  .studio-main {
+    flex: 1;
+    min-width: 0;
+    padding: 4rem 2rem 0;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  .studio-content { flex: 1; position: relative; }
+
+  /* Subtle grid background */
+  .grid-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background-image:
+      linear-gradient(rgba(255, 34, 102, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 34, 102, 0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+
+  .station-header {
+    position: relative;
+    z-index: 1;
+    display: inline-block;
+    background: rgba(8, 8, 8, 0.72);
+    padding: 1.25rem 2rem;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 34, 102, 0.22);
+    margin-bottom: 2.5rem;
+    box-shadow: 0 0 32px rgba(255, 34, 102, 0.08);
+  }
+
+  .station-header::after {
+    content: '';
+    display: block;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(255, 34, 102, 0.6), rgba(34, 68, 221, 0.4), transparent);
+    margin-top: 0.9rem;
+  }
+
+  .station-label {
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: rgba(255, 34, 102, 0.75);
+    margin-bottom: 0.5rem;
+  }
+
+  .station-header h1 {
+    font-size: 2.5rem;
+    margin-bottom: 0.4rem;
+    color: #e8e8e8;
+  }
+
+  .station-desc {
+    color: rgba(200, 200, 200, 0.55);
+    font-style: italic;
+  }
+
+  .studio-footer {
+    position: relative;
+    z-index: 1;
+    color: rgba(160, 160, 160, 0.45) !important;
+  }
+  .studio-footer a { color: rgba(255, 34, 102, 0.6); }
+  .studio-footer a:hover { color: rgba(255, 34, 102, 0.9); }
+</style>

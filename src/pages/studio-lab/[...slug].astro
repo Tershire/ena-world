@@ -1,0 +1,40 @@
+---
+import { getCollection, render } from 'astro:content';
+import ArticleLayout from '../../layouts/ArticleLayout.astro';
+
+export async function getStaticPaths() {
+  const allEntries = await getCollection('studio-lab');
+  const articles   = allEntries.filter((e) => !e.id.endsWith('/_index') && e.data.public);
+  const dirEntries = allEntries.filter((e) => e.id.endsWith('/_index'));
+  return articles.map((article) => ({
+    params: { slug: article.id },
+    props: { article, allArticles: articles, dirEntries },
+  }));
+}
+
+const { article, allArticles, dirEntries } = Astro.props;
+const { Content } = await render(article);
+
+const base        = import.meta.env.BASE_URL.replace(/\/$/, '');
+const navBase     = `${base}/studio-lab`;
+const navArticles = allArticles.map((a) => ({ id: a.id, title: a.data.title, order: a.data.order }));
+const navDirs     = dirEntries.map((d) => ({
+  path:  d.id.replace('/_index', ''),
+  order: d.data.order ?? 999,
+  title: d.data.title,
+}));
+---
+
+<ArticleLayout
+  title={article.data.title}
+  description={article.data.description}
+  date={article.data.date}
+  tags={article.data.tags}
+  navArticles={navArticles}
+  navDirs={navDirs}
+  navBase={navBase}
+  navLabel="Studio Lab"
+  currentId={article.id}
+>
+  <Content />
+</ArticleLayout>
