@@ -64,6 +64,7 @@ sync_station "central-lab"
 sync_station "marine-lab"
 sync_station "aerospace-lab"
 sync_station "library"
+sync_station "studio-lab"
 
 # Sync references.bib (Better BibTeX auto-export from Zotero)
 if [[ -f "${VAULT}/references.bib" ]]; then
